@@ -5,14 +5,14 @@
   <title>Goutte – Visualisation interactive</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-  <!-- Police Inter partout -->
+  <!-- Inter -->
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 
-  <!-- Préchargement de la skybox -->
+  <!-- Précharge la skybox (optionnel) -->
   <link rel="preload" as="image" href="./galaxy.jpg" />
 
-  <!-- model-viewer (version épinglée pour stabilité) -->
+  <!-- model-viewer -->
   <script type="module" src="https://cdn.jsdelivr.net/npm/@google/model-viewer@3.4.0/dist/model-viewer.min.js"></script>
 
   <style>
@@ -69,10 +69,16 @@
     <model-viewer id="mv"
       src="https://ericpringels.github.io/3dfiles/goutte59c_XL.glb"
       camera-controls touch-action="pan-y" interaction-prompt="none"
-      shadow-intensity="0" style="background-color:transparent"
+      style="background-color:transparent"
       alt="Urne goutte – visualisation 3D"
-      camera-orbit="30deg 60deg auto" camera-target="auto" field-of-view="35deg"
       tone-mapping="aces"
+      camera-orbit="30deg 60deg auto"
+      camera-target="auto"
+      field-of-view="50deg"       <!-- FOV un peu plus large : la skybox paraît moins « zoomée » -->
+      min-field-of-view="35deg"
+      max-field-of-view="70deg"
+      shadow-intensity="0.2"
+      environment-intensity="1.4" <!-- éclairage par défaut plus fort -->
     >
       <!-- Hotspots dimensions : X -->
       <button class="dimtag" slot="hotspot-x-min" data-dim="x" data-end="min" style="display:none">
@@ -111,11 +117,11 @@
       top : "https://ericpringels.github.io/3dfiles/goutte59c_XL_haut.glb"
     };
 
-    // Fichier de skybox (même dossier que ce fichier)
+    // Skybox locale
     const GALAXY_URL = "./galaxy.jpg";
 
-    // Vue isométrique de face (défaut + reset)
-    const ISO = { orbit:"30deg 60deg auto", target:"auto", fov:"35deg" };
+    // Vue iso (défaut + reset)
+    const ISO = { orbit:"30deg 60deg auto", target:"auto", fov:"50deg" };
     function applyIso(){ mv.cameraOrbit=ISO.orbit; mv.cameraTarget=ISO.target; mv.fieldOfView=ISO.fov; }
 
     function waitLoad(){
@@ -152,8 +158,8 @@
       setHotspotsVisibility(tDims.checked);
     }
 
-    // Transition douce d'exposition (0 → 1 etc.)
-    function tweenExposure(from, to, ms=800){
+    // Exposition progressive
+    function tweenExposure(from, to, ms=600){
       const start = performance.now();
       mv.exposure = from;
       function step(t){
@@ -164,21 +170,21 @@
       requestAnimationFrame(step);
     }
 
-    // Active/désactive la skybox + neutral lighting
+    // Applique la skybox + intensité d'éclairage adaptée
     function applySkybox(on){
       if (on) {
-        // Fond + éclairage avec la galaxie
+        // Fond + IBL = galaxie
         mv.setAttribute('skybox-image', GALAXY_URL);
         mv.setAttribute('environment-image', GALAXY_URL);
-        tweenExposure(0.0, 1.0, 800);
+        // Boost l'éclairage (IBL) + expo
+        mv.environmentIntensity = 1.8;   // éclaire plus fort
+        tweenExposure(mv.exposure ?? 1.0, 1.35, 400); // un peu plus lumineux
       } else {
-        // Fade out puis retour à l'éclairage neutre
-        tweenExposure(1.0, 0.0, 800);
-        setTimeout(()=>{
-          mv.removeAttribute('skybox-image');
-          mv.setAttribute('environment-image', 'neutral');
-          tweenExposure(0.7, 1.0, 400);
-        }, 820);
+        // Retour neutral
+        tweenExposure(mv.exposure ?? 1.2, 1.1, 300);
+        mv.removeAttribute('skybox-image');
+        mv.setAttribute('environment-image', 'neutral');
+        mv.environmentIntensity = 1.3;
       }
     }
 
@@ -188,7 +194,6 @@
       await mv.updateComplete; await waitLoad();
       placeDimensionHotspots(); applyIso();
       if (!tDims.checked) setHotspotsVisibility(false);
-      // conserver l'état de la skybox
       applySkybox(tSky.checked);
     });
 
@@ -207,9 +212,12 @@
       applyIso();
     });
 
-    // Démarrage : skybox galaxie cochée → on l’applique avec fade-in
+    // Démarrage : skybox cochée
     (async ()=>{
       await waitLoad();
+      // setup base
+      mv.exposure = 1.2;
+      mv.environmentIntensity = 1.4;
       applySkybox(true);
     })();
   </script>

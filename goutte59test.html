@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <title>Goutte – Visualisation interactive</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- model-viewer -->
+  <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+
+  <style>
+    :root {
+      /* Ajustez si besoin la vitesse d'inertie / zoom, etc. */
+      --ui-bg: rgba(20,20,20,0.6);
+      --ui-fg: #fff;
+      --ui-fg-dim: rgba(255,255,255,0.7);
+      --radius: 12px;
+    }
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      background: transparent; /* important pour un embed super.so / Notion */
+    }
+    /* Le composant prendra la taille de son parent (div d’embed). */
+    .viewer-wrap {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      min-height: 320px; /* sécurité si parent est trop petit */
+      background: transparent;
+      overflow: hidden;
+    }
+    model-viewer {
+      width: 100%;
+      height: 100%;
+      background-color: transparent;             /* fond de scène transparent */
+      --poster-color: transparent;
+      --progress-mask: none;
+      --progress-bar-color: transparent;
+    }
+    /* Panneau de contrôle flottant */
+    .controls {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+      padding: 10px 12px;
+      background: var(--ui-bg);
+      color: var(--ui-fg);
+      border-radius: var(--radius);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      z-index: 5;
+    }
+    .controls label {
+      font-size: 14px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+    .controls select, .controls input[type="checkbox"] {
+      accent-color: #999;
+      background: #111;
+      color: var(--ui-fg);
+      border: 1px solid #444;
+      border-radius: 8px;
+      padding: 6px 8px;
+      font-size: 14px;
+    }
+    .controls select {
+      min-width: 230px;
+    }
+
+    /* Cartouche des dimensions (overlay simple) */
+    .dims {
+      position: absolute;
+      right: 12px;
+      top: 12px;
+      padding: 10px 12px;
+      background: var(--ui-bg);
+      color: var(--ui-fg);
+      border-radius: var(--radius);
+      font: 14px/1.45 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      display: none; /* toggle via JS */
+      z-index: 5;
+    }
+    .dims h3 {
+      margin: 0 0 6px 0;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--ui-fg);
+    }
+    .dims .val {
+      color: var(--ui-fg-dim);
+      font-variant-numeric: tabular-nums;
+    }
+    /* Aide (bouton reset) */
+    .footer-controls {
+      position: absolute;
+      left: 12px;
+      bottom: 12px;
+      display: flex;
+      gap: 8px;
+      z-index: 5;
+    }
+    .btn {
+      appearance: none;
+      border: 1px solid #444;
+      border-radius: 999px;
+      padding: 8px 12px;
+      background: var(--ui-bg);
+      color: var(--ui-fg);
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .btn:hover { border-color: #666; }
+    /* Accessibilité légère */
+    .sr-only {
+      position: absolute;
+      width: 1px; height: 1px;
+      padding: 0; margin: -1px;
+      overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="viewer-wrap">
+    <!-- Panneau de contrôle -->
+    <div class="controls" role="group" aria-label="Contrôles du modèle">
+      <label>
+        <span>Configuration</span>
+        <select id="config">
+          <option value="full" selected>Fermée – goutte complète</option>
+          <option value="open">Ouverte – coque du bas + mandorle</option>
+          <option value="top">Couvercle – partie haute</option>
+        </select>
+      </label>
+
+      <label title="Afficher les dimensions L × l × H (bbox)">
+        <input type="checkbox" id="toggleDims" />
+        Afficher les dimensions
+      </label>
+    </div>
+
+    <!-- Cartouche des dimensions -->
+    <div id="dimsPanel" class="dims" aria-live="polite"></div>
+
+    <!-- Bouton reset vue -->
+    <div class="footer-controls">
+      <button id="resetView" class="btn" type="button">Réinitialiser la vue</button>
+    </div>
+
+    <!-- Le viewer 3D -->
+    <model-viewer id="mv"
+      src="https://ericpringels.github.io/3dfiles/goutte59c_XL.glb"
+      camera-controls
+      interaction-prompt="none"
+      autoplay
+      exposure="1"
+      shadow-intensity="0"
+      environment-image="neutral"
+      ar-modes="webxr scene-viewer quick-look"
+      touch-action="pan-y"
+      alt="Urne goutte – visualisation 3D"
+    >
+      <!-- Slots de hotspots disponibles si vous souhaitez plus tard ajouter des repères -->
+    </model-viewer>
+  </div>
+
+  <script>
+    // URL des variantes
+    const URLS = {
+      full: "https://ericpringels.github.io/3dfiles/goutte59c_XL.glb",
+      open: "https://ericpringels.github.io/3dfiles/goutte59c_XL_bas.glb",
+      top : "https://ericpringels.github.io/3dfiles/goutte59c_XL_haut.glb"
+    };
+
+    const mv          = document.getElementById('mv');
+    const configSel   = document.getElementById('config');
+    const toggleDims  = document.getElementById('toggleDims');
+    const dimsPanel   = document.getElementById('dimsPanel');
+    const resetBtn    = document.getElementById('resetView');
+
+    // Applique le fond réellement transparent (y compris pendant chargement)
+    mv.addEventListener('preload', () => {
+      mv.style.backgroundColor = 'transparent';
+    });
+
+    // Changement de configuration (remplace le modèle)
+    configSel.addEventListener('change', async (e) => {
+      const v = e.target.value;
+      mv.src = URLS[v] || URLS.full;
+      // Attendre que le nouveau modèle soit chargé avant de recalculer
+      await mv.updateComplete;
+      if (toggleDims.checked) {
+        await ensureModelLoadedThenUpdateDims();
+      }
+    });
+
+    // Réinitialiser la caméra
+    resetBtn.addEventListener('click', () => {
+      mv.cameraOrbit = '';
+      mv.cameraTarget = '';
+      mv.fieldOfView = '';
+    });
+
+    // Gestion du panneau de dimensions
+    toggleDims.addEventListener('change', async () => {
+      if (toggleDims.checked) {
+        await ensureModelLoadedThenUpdateDims();
+        dimsPanel.style.display = 'block';
+      } else {
+        dimsPanel.style.display = 'none';
+      }
+    });
+
+    // Met à jour le panneau des dimensions (L × l × H) en mètres + conversion mm
+    async function ensureModelLoadedThenUpdateDims() {
+      // model-viewer émet 'load' quand la scène est prête
+      if (!mv.model) {
+        await new Promise(resolve => {
+          const onLoad = () => { mv.removeEventListener('load', onLoad); resolve(); };
+          mv.addEventListener('load', onLoad);
+        });
+      }
+      updateDimsPanel();
+    }
+
+    function updateDimsPanel() {
+      if (!mv || !mv.getDimensions) return;
+
+      const d = mv.getDimensions(); // {x, y, z} en mètres (largeur, hauteur, profondeur)
+      // Arrondis lisibles
+      const mm = {
+        x: Math.round(d.x * 1000),
+        y: Math.round(d.y * 1000),
+        z: Math.round(d.z * 1000)
+      };
+      const cm = {
+        x: (d.x * 100).toFixed(1),
+        y: (d.y * 100).toFixed(1),
+        z: (d.z * 100).toFixed(1)
+      };
+
+      // Affichage : L × l × H (suivant conv. bbox : x=largeur, z=profondeur, y=hauteur)
+      dimsPanel.innerHTML = `
+        <h3>Dimensions (boîte englobante)</h3>
+        <div class="val">
+          Largeur (X) : <strong>${cm.x}</strong> cm <span class="sr-only">,</span> <small>(${mm.x} mm)</small><br/>
+          Profondeur (Z) : <strong>${cm.z}</strong> cm <small>(${mm.z} mm)</small><br/>
+          Hauteur (Y) : <strong>${cm.y}</strong> cm <small>(${mm.y} mm)</small>
+        </div>
+      `;
+    }
+
+    // Au premier chargement, préparer l’état
+    mv.addEventListener('load', () => {
+      if (toggleDims.checked) {
+        updateDimsPanel();
+        dimsPanel.style.display = 'block';
+      }
+    });
+
+    // Option : recalculer après un resize (si parent change de taille)
+    const ro = new ResizeObserver(() => {
+      if (toggleDims.checked) updateDimsPanel();
+    });
+    ro.observe(document.querySelector('.viewer-wrap'));
+  </script>
+</body>
+</html>

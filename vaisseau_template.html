@@ -2,43 +2,39 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8" />
-  <title>Goutte – Visualisation interactive avec skybox galaxie</title>
+  <title>Goutte – Visualisation interactive</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 
+  <!-- Inter -->
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 
-  <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+  <!-- model-viewer (version épinglée) -->
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@google/model-viewer@3.4.0/dist/model-viewer.min.js"></script>
 
   <style>
-    :root { --ui-bg: rgba(20,20,20,0.6); --ui-fg:#fff; --ui-dim:rgba(255,255,255,.75); --r:12px; }
+    :root { --ui-bg: rgba(20,20,20,.6); --ui-fg:#fff; --r:12px; }
     html,body{height:100%;margin:0;background:transparent;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
     .wrap{position:relative;width:100%;height:100%;min-height:320px;background:transparent}
     model-viewer{width:100%;height:100%;background-color:transparent;--poster-color:transparent}
 
     .controls{position:absolute;top:12px;left:12px;display:flex;gap:8px;flex-wrap:wrap;
-      padding:10px 12px;background:var(--ui-bg);color:var(--ui-fg);
-      border-radius:var(--r);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);z-index:5}
+      padding:10px 12px;background:var(--ui-bg);color:var(--ui-fg);border-radius:var(--r);
+      backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);z-index:5}
     .controls label{font-size:14px;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
-    .controls select,.controls input[type=checkbox]{accent-color:#999;background:#111;color:var(--ui-fg);
+    .controls select,.controls input[type=checkbox]{accent-color:#999;background:#111;color:#fff;
       border:1px solid #444;border-radius:8px;padding:6px 8px;font-size:14px}
     .controls select{min-width:240px}
+
     .footer{position:absolute;left:12px;bottom:12px;z-index:5}
-    .btn{border:1px solid #444;border-radius:999px;padding:8px 12px;background:var(--ui-bg);color:var(--ui-fg);font-size:13px;cursor:pointer}
+    .btn{border:1px solid #444;border-radius:999px;padding:8px 12px;background:var(--ui-bg);color:#fff;font-size:13px;cursor:pointer}
     .btn:hover{border-color:#666}
 
-    /* Hotspots de dimension – mêmes définitions qu’avant */
+    /* Hotspots dimensions */
     model-viewer::part(default-hotspot){background:transparent;border:none}
-    .dimtag{
-      display:flex;align-items:center;gap:6px;
-      padding:4px 8px;border-radius:10px;background:rgba(0,0,0,.55);color:#fff;font-size:12px;
-      box-shadow:0 1px 8px rgba(0,0,0,.35)
-    }
-    .tick{
-      width:14px;height:2px;background:#fff;opacity:.9;border-radius:1px;
-      transform:rotate(0.0001deg);
-    }
-    .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+    .dimtag{display:flex;align-items:center;gap:6px;padding:4px 8px;border-radius:10px;
+      background:rgba(0,0,0,.55);color:#fff;font-size:12px;box-shadow:0 1px 8px rgba(0,0,0,.35)}
+    .tick{width:14px;height:2px;background:#fff;opacity:.9;border-radius:1px;transform:rotate(.0001deg)}
   </style>
 </head>
 <body>
@@ -52,11 +48,13 @@
           <option value="top">Couvercle – partie haute</option>
         </select>
       </label>
+
       <label title="Afficher/masquer les hotspots de dimensions">
         <input type="checkbox" id="toggleDims"> Afficher les dimensions
       </label>
+
       <label title="Activer / désactiver la skybox galaxie">
-        <input type="checkbox" id="toggleSky"> Galaxie
+        <input type="checkbox" id="toggleSky" checked> Galaxie
       </label>
     </div>
 
@@ -64,42 +62,44 @@
       <button id="reset" class="btn" type="button">Réinitialiser la vue</button>
     </div>
 
+    <!-- Viewer -->
     <model-viewer id="mv"
       src="https://ericpringels.github.io/3dfiles/goutte59c_XL.glb"
-      camera-controls touch-action="pan-y"
-      interaction-prompt="none"
-      autoplay shadow-intensity="0"
-      style="background-color:transparent"
+      camera-controls touch-action="pan-y" interaction-prompt="none"
+      shadow-intensity="0" style="background-color:transparent"
       alt="Urne goutte – visualisation 3D"
       camera-orbit="30deg 60deg auto" camera-target="auto" field-of-view="35deg"
+      tone-mapping="aces"
     >
-      <!-- Hotspots de dimensions -->
-      <button class="dimtag" slot="hotspot-x-min" data-dim="x" data-end="min" data-visibility="hidden">
+      <!-- Hotspots dimensions : X -->
+      <button class="dimtag" slot="hotspot-x-min" data-dim="x" data-end="min" style="display:none">
         <span class="tick"></span><span class="label">X</span>
       </button>
-      <button class="dimtag" slot="hotspot-x-max" data-dim="x" data-end="max" data-visibility="hidden">
+      <button class="dimtag" slot="hotspot-x-max" data-dim="x" data-end="max" style="display:none">
         <span class="tick"></span><span class="label">X</span>
       </button>
-      <button class="dimtag" slot="hotspot-z-min" data-dim="z" data-end="min" data-visibility="hidden">
+      <!-- Z -->
+      <button class="dimtag" slot="hotspot-z-min" data-dim="z" data-end="min" style="display:none">
         <span class="tick"></span><span class="label">Z</span>
       </button>
-      <button class="dimtag" slot="hotspot-z-max" data-dim="z" data-end="max" data-visibility="hidden">
+      <button class="dimtag" slot="hotspot-z-max" data-dim="z" data-end="max" style="display:none">
         <span class="tick"></span><span class="label">Z</span>
       </button>
-      <button class="dimtag" slot="hotspot-y-min" data-dim="y" data-end="min" data-visibility="hidden">
+      <!-- Y -->
+      <button class="dimtag" slot="hotspot-y-min" data-dim="y" data-end="min" style="display:none">
         <span class="tick"></span><span class="label">Y</span>
       </button>
-      <button class="dimtag" slot="hotspot-y-max" data-dim="y" data-end="max" data-visibility="hidden">
+      <button class="dimtag" slot="hotspot-y-max" data-dim="y" data-end="max" style="display:none">
         <span class="tick"></span><span class="label">Y</span>
       </button>
     </model-viewer>
   </div>
 
   <script>
-    const mv = document.getElementById('mv');
-    const cfg = document.getElementById('cfg');
-    const tgl = document.getElementById('toggleDims');
-    const tglSky = document.getElementById('toggleSky');
+    const mv   = document.getElementById('mv');
+    const cfg  = document.getElementById('cfg');
+    const tDims= document.getElementById('toggleDims');
+    const tSky = document.getElementById('toggleSky');
     const btnR = document.getElementById('reset');
 
     const URLS = {
@@ -108,125 +108,100 @@
       top : "https://ericpringels.github.io/3dfiles/goutte59c_XL_haut.glb"
     };
 
-    const ISO = { orbit:"30deg 60deg auto", target:"auto", fov:"35deg" };
+    // Skybox locale (même dossier que ce fichier)
+    const GALAXY_URL = "./galaxy.jpg";
 
-    function applyIso(){
-      mv.cameraOrbit = ISO.orbit;
-      mv.cameraTarget = ISO.target;
-      mv.fieldOfView = ISO.fov;
+    const ISO = { orbit:"30deg 60deg auto", target:"auto", fov:"35deg" };
+    function applyIso(){ mv.cameraOrbit=ISO.orbit; mv.cameraTarget=ISO.target; mv.fieldOfView=ISO.fov; }
+
+    function waitLoad(){
+      if (mv.model) return Promise.resolve();
+      return new Promise(res => { const onL=()=>{mv.removeEventListener('load',onL);res();}; mv.addEventListener('load',onL); });
     }
 
-    async function waitLoad(){
-      if (mv.model) return;
-      return new Promise(res => {
-        const onL = () => { mv.removeEventListener('load', onL); res(); };
-        mv.addEventListener('load', onL);
-      });
+    function setHotspotsVisibility(on){
+      mv.querySelectorAll('button[slot^="hotspot-"]').forEach(el=>{ el.style.display = on ? 'inline-flex' : 'none'; });
     }
 
     function placeDimensionHotspots(){
       if (!mv.model) return;
-      const d = mv.getDimensions();
-      const hx = d.x/2, hy = d.y/2, hz = d.z/2;
-      const map = [
-        {slot:'hotspot-x-min',pos:`${-hx} 0 0`,axis:'x',len:d.x},
-        {slot:'hotspot-x-max',pos:`${ hx} 0 0`,axis:'x',len:d.x},
-        {slot:'hotspot-z-min',pos:`0 0 ${-hz}`,axis:'z',len:d.z},
-        {slot:'hotspot-z-max',pos:`0 0 ${ hz}`,axis:'z',len:d.z},
-        {slot:'hotspot-y-min',pos:`0 ${-hy} 0`,axis:'y',len:d.y},
-        {slot:'hotspot-y-max',pos:`0 ${ hy} 0`,axis:'y',len:d.y}
+      const d = mv.getDimensions(); // en m
+      const hx=d.x/2, hy=d.y/2, hz=d.z/2;
+      const cfg = [
+        {slot:'hotspot-x-min',pos:`${-hx} 0 0`, axis:'x', len:d.x},
+        {slot:'hotspot-x-max',pos:`${ hx} 0 0`, axis:'x', len:d.x},
+        {slot:'hotspot-z-min',pos:`0 0 ${-hz}`, axis:'z', len:d.z},
+        {slot:'hotspot-z-max',pos:`0 0 ${ hz}`, axis:'z', len:d.z},
+        {slot:'hotspot-y-min',pos:`0 ${-hy} 0`, axis:'y', len:d.y},
+        {slot:'hotspot-y-max',pos:`0 ${ hy} 0`, axis:'y', len:d.y},
       ];
-      map.forEach(m=>{
-        const el = mv.querySelector(`[slot="${m.slot}"]`);
-        if (!el) return;
+      cfg.forEach(m=>{
+        const el = mv.querySelector(`[slot="${m.slot}"]`); if(!el) return;
         el.dataset.position = m.pos;
         el.dataset.normal = "0 1 0";
         const cm = (m.len*100).toFixed(1);
         const mm = Math.round(m.len*1000);
         el.querySelector(".label").textContent =
-          (m.axis==='x' ? `Largeur ${cm} cm` :
-           m.axis==='z' ? `Profondeur ${cm} cm` :
-                          `Hauteur ${cm} cm`);
+          (m.axis==='x' ? `Largeur ${cm} cm` : m.axis==='z' ? `Profondeur ${cm} cm` : `Hauteur ${cm} cm`);
         el.title = `${mm} mm`;
       });
-      setHotspotsVisibility(tgl.checked);
+      setHotspotsVisibility(tDims.checked);
     }
 
-    function setHotspotsVisibility(on){
-      const hs = mv.querySelectorAll('button[slot^="hotspot-"]');
-      hs.forEach(el=>{
-        el.style.display = on ? 'inline-flex' : 'none';
-      });
+    // Tween d'exposition (0 → 1 etc.)
+    function tweenExposure(from, to, ms=800){
+      const start = performance.now();
+      mv.exposure = from;
+      function step(t){
+        const p = Math.min((t - start)/ms, 1);
+        mv.exposure = from + (to - from) * p;
+        if (p < 1) requestAnimationFrame(step);
+      }
+      requestAnimationFrame(step);
     }
 
-    // Gestion de la skybox
-    async function applySkybox(on) {
-      // paramétrage d'exposition progressive
+    function applySkybox(on){
       if (on) {
-        // activer skybox galaxie
-        mv.environmentImage = "https://ericpringels.github.io/3dfiles/galaxy.jpg";  // ou .jpg selon ce que tu mets
-        // Effet d'exposition progressive : de 0 → 1 en 0.8s
-        mv.exposure = 0;
-        await mv.updateComplete;
-        // petit fade
-        const dur = 800;
-        const start = performance.now();
-        function step(t) {
-          const p = Math.min((t - start) / dur, 1);
-          mv.exposure = p; 
-          if (p < 1) requestAnimationFrame(step);
-        }
-        requestAnimationFrame(step);
+        mv.setAttribute('environment-image', GALAXY_URL);
+        tweenExposure(0.0, 1.0, 800);
       } else {
-        // désactiver skybox : passer en neutral lighting
-        // On fade de l'exposition : 1 → 0
-        const dur = 800;
-        const st = performance.now();
-        function fadeOut(t) {
-          const p = Math.min((t - st)/dur, 1);
-          mv.exposure = 1 - p;
-          if (p < 1) requestAnimationFrame(fadeOut);
-        }
-        requestAnimationFrame(fadeOut);
-        // Après le fade, on remet environment neutral
-        setTimeout(() => {
-          mv.environmentImage = "neutral";
-        }, dur);
+        // fade out puis neutral lighting
+        tweenExposure(1.0, 0.0, 800);
+        setTimeout(()=>{
+          mv.setAttribute('environment-image', 'neutral');
+          tweenExposure(0.7, 1.0, 400);
+        }, 820);
       }
     }
 
-    // Événement de rotation de caméra pour faire « tourner » la skybox
-    mv.addEventListener('camera-change', () => {
-      // model-viewer gère intrinsèquement l’alignement de l’environnement avec la caméra
-      // donc normalement pas besoin d’intervention manuelle
-      // (mais si on voulait ajuster, on pourrait jouer sur mv.shadowIntensity, etc.)
-    });
-
-    cfg.addEventListener('change', async () => {
+    // UI
+    cfg.addEventListener('change', async ()=>{
       mv.src = URLS[cfg.value] || URLS.full;
-      await mv.updateComplete;
-      await waitLoad();
-      placeDimensionHotspots();
-      applyIso();
-      if (!tgl.checked) setHotspotsVisibility(false);
+      await mv.updateComplete; await waitLoad();
+      placeDimensionHotspots(); applyIso();
+      if (!tDims.checked) setHotspotsVisibility(false);
     });
 
-    tgl.addEventListener('change', () => {
-      setHotspotsVisibility(tgl.checked);
-      if (tgl.checked) placeDimensionHotspots();
+    tDims.addEventListener('change', ()=>{
+      setHotspotsVisibility(tDims.checked);
+      if (tDims.checked) placeDimensionHotspots();
     });
 
-    tglSky.addEventListener('change', () => {
-      applySkybox(tglSky.checked);
-    });
-
-    mv.addEventListener('load', () => {
-      placeDimensionHotspots();
-      setHotspotsVisibility(tgl.checked);
-      applyIso();
-    });
-
+    tSky.addEventListener('change', ()=> applySkybox(tSky.checked));
     btnR.addEventListener('click', applyIso);
+
+    // Init
+    mv.addEventListener('load', ()=>{
+      placeDimensionHotspots();
+      setHotspotsVisibility(tDims.checked);
+      applyIso();
+    });
+
+    // Démarrage : skybox galaxie cochée → on l’applique avec léger fade-in
+    (async ()=>{
+      await waitLoad();
+      applySkybox(true);  // skybox ON au chargement
+    })();
   </script>
 </body>
 </html>

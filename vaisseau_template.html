@@ -5,11 +5,14 @@
   <title>Goutte – Visualisation interactive</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-  <!-- Inter -->
+  <!-- Police Inter partout -->
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 
-  <!-- model-viewer (version épinglée) -->
+  <!-- Préchargement de la skybox -->
+  <link rel="preload" as="image" href="./galaxy.jpg" />
+
+  <!-- model-viewer (version épinglée pour stabilité) -->
   <script type="module" src="https://cdn.jsdelivr.net/npm/@google/model-viewer@3.4.0/dist/model-viewer.min.js"></script>
 
   <style>
@@ -108,9 +111,10 @@
       top : "https://ericpringels.github.io/3dfiles/goutte59c_XL_haut.glb"
     };
 
-    // Skybox locale (même dossier que ce fichier)
+    // Fichier de skybox (même dossier que ce fichier)
     const GALAXY_URL = "./galaxy.jpg";
 
+    // Vue isométrique de face (défaut + reset)
     const ISO = { orbit:"30deg 60deg auto", target:"auto", fov:"35deg" };
     function applyIso(){ mv.cameraOrbit=ISO.orbit; mv.cameraTarget=ISO.target; mv.fieldOfView=ISO.fov; }
 
@@ -148,7 +152,7 @@
       setHotspotsVisibility(tDims.checked);
     }
 
-    // Tween d'exposition (0 → 1 etc.)
+    // Transition douce d'exposition (0 → 1 etc.)
     function tweenExposure(from, to, ms=800){
       const start = performance.now();
       mv.exposure = from;
@@ -160,14 +164,18 @@
       requestAnimationFrame(step);
     }
 
+    // Active/désactive la skybox + neutral lighting
     function applySkybox(on){
       if (on) {
+        // Fond + éclairage avec la galaxie
+        mv.setAttribute('skybox-image', GALAXY_URL);
         mv.setAttribute('environment-image', GALAXY_URL);
         tweenExposure(0.0, 1.0, 800);
       } else {
-        // fade out puis neutral lighting
+        // Fade out puis retour à l'éclairage neutre
         tweenExposure(1.0, 0.0, 800);
         setTimeout(()=>{
+          mv.removeAttribute('skybox-image');
           mv.setAttribute('environment-image', 'neutral');
           tweenExposure(0.7, 1.0, 400);
         }, 820);
@@ -180,6 +188,8 @@
       await mv.updateComplete; await waitLoad();
       placeDimensionHotspots(); applyIso();
       if (!tDims.checked) setHotspotsVisibility(false);
+      // conserver l'état de la skybox
+      applySkybox(tSky.checked);
     });
 
     tDims.addEventListener('change', ()=>{
@@ -197,10 +207,10 @@
       applyIso();
     });
 
-    // Démarrage : skybox galaxie cochée → on l’applique avec léger fade-in
+    // Démarrage : skybox galaxie cochée → on l’applique avec fade-in
     (async ()=>{
       await waitLoad();
-      applySkybox(true);  // skybox ON au chargement
+      applySkybox(true);
     })();
   </script>
 </body>

@@ -9,22 +9,37 @@
   <script nomodule src="https://unpkg.com/@google/model-viewer@3.4.0/dist/model-viewer-legacy.js"></script>
   <style>
     html,body{height:100%;margin:0;background:transparent;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
-    .wrap{position:relative;width:100%;height:100%}
-    model-viewer{width:100%;height:100%;background-color:transparent;--poster-color:transparent}
-    .controls{position:absolute;top:12px;left:12px;display:flex;gap:8px;flex-wrap:wrap;padding:10px 12px;background:rgba(20,20,20,.6);color:#fff;border-radius:12px;backdrop-filter:blur(8px);z-index:5}
+    .stage{position:relative;width:100%;height:100%}
+    /* --- Fond galaxie derrière le viewer (ne touche pas à la lumière) --- */
+    .bg{
+      position:absolute;inset:0;
+      background:#000 center/cover no-repeat;
+      opacity:0; pointer-events:none; transition:opacity .25s ease;
+      z-index:0;
+    }
+    .bg.on{opacity:1;background-image:url("./multi_nebulae_1.png")}
+    /* --- Viewer --- */
+    model-viewer{position:relative;z-index:1;width:100%;height:100%;background-color:transparent;--poster-color:transparent}
+    /* --- UI --- */
+    .controls{position:absolute;top:12px;left:12px;display:flex;gap:8px;flex-wrap:wrap;
+      padding:10px 12px;background:rgba(20,20,20,.6);color:#fff;border-radius:12px;backdrop-filter:blur(8px);z-index:2}
     .controls label{font-size:14px;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
     .controls select,.controls input[type=checkbox]{accent-color:#999;background:#111;color:#fff;border:1px solid #444;border-radius:8px;padding:6px 8px;font-size:14px}
     .controls select{min-width:240px}
-    .footer{position:absolute;left:12px;bottom:12px;z-index:5}
+    .footer{position:absolute;left:12px;bottom:12px;z-index:2}
     .btn{border:1px solid #444;border-radius:999px;padding:8px 12px;background:rgba(20,20,20,.6);color:#fff;font-size:13px;cursor:pointer}
     .btn:hover{border-color:#666}
+    /* Hotspots */
     model-viewer::part(default-hotspot){background:transparent;border:none}
-    .dimtag{display:flex;align-items:center;gap:6px;padding:4px 8px;border-radius:10px;background:rgba(0,0,0,.55);color:#fff;font-size:12px;box-shadow:0 1px 8px rgba(0,0,0,.35)}
+    .dimtag{display:flex;align-items:center;gap:6px;padding:4px 8px;border-radius:10px;
+      background:rgba(0,0,0,.55);color:#fff;font-size:12px;box-shadow:0 1px 8px rgba(0,0,0,.35)}
     .tick{width:14px;height:2px;background:#fff;opacity:.9;border-radius:1px}
   </style>
 </head>
 <body>
-  <div class="wrap">
+  <div class="stage">
+    <div id="bg" class="bg"></div>
+
     <div class="controls" role="group" aria-label="Contrôles">
       <label>
         <span>Configuration</span>
@@ -45,21 +60,16 @@
     <model-viewer id="mv"
       src="https://ericpringels.github.io/3dfiles/goutte59c_XL.glb"
       alt="Urne goutte – visualisation 3D"
-      camera-controls
-      touch-action="pan-y"
-      interaction-prompt="none"
+      camera-controls touch-action="pan-y" interaction-prompt="none"
       tone-mapping="aces"
       camera-orbit="30deg 60deg auto"
       camera-target="auto"
-      field-of-view="55deg"
-      min-field-of-view="35deg"
-      max-field-of-view="85deg"
+      field-of-view="55deg" min-field-of-view="35deg" max-field-of-view="85deg"
       scale="0.28 0.28 0.28"
       environment-image="neutral"
       environment-intensity="3.6"
       exposure="3.0"
-      shadow-intensity="0.6"
-      shadow-softness="0.9">
+      shadow-intensity="0.6" shadow-softness="0.9">
       <button class="dimtag" slot="hotspot-x-min" style="display:none"><span class="tick"></span><span class="label">X</span></button>
       <button class="dimtag" slot="hotspot-x-max" style="display:none"><span class="tick"></span><span class="label">X</span></button>
       <button class="dimtag" slot="hotspot-z-min" style="display:none"><span class="tick"></span><span class="label">Z</span></button>
@@ -75,87 +85,39 @@
     const tDims= document.getElementById('toggleDims');
     const tSky = document.getElementById('toggleSky');
     const btnR = document.getElementById('reset');
+    const bg   = document.getElementById('bg');
 
     const MODELS = {
       full: "https://ericpringels.github.io/3dfiles/goutte59c_XL.glb",
       open: "https://ericpringels.github.io/3dfiles/goutte59c_XL_bas.glb",
       top : "https://ericpringels.github.io/3dfiles/goutte59c_XL_haut.glb"
     };
-    const SKYBOX = "./multi_nebulae_1.png";
-
-    const originalMat = new Map();
-    function saveOriginalMaterials() {
-      const mats = mv.model?.materials || [];
-      mats.forEach((m, i) => {
-        if (originalMat.has(m)) return;
-        const pbr = m.pbrMetallicRoughness;
-        originalMat.set(m, {
-          base: (pbr.baseColorFactor || [1,1,1,1]).slice(),
-          rough: (pbr.roughnessFactor ?? 1),
-          metal: (pbr.metallicFactor ?? 0),
-          emissive: (m.emissiveFactor || [0,0,0]).slice()
-        });
-      });
-    }
-    function applyEmissiveBoost(on){
-      const mats = mv.model?.materials || [];
-      if (on){
-        mats.forEach(m=>{
-          const pbr = m.pbrMetallicRoughness;
-          if (!originalMat.has(m)) { // au cas où
-            originalMat.set(m, {
-              base:(pbr.baseColorFactor||[1,1,1,1]).slice(),
-              rough:(pbr.roughnessFactor??1),
-              metal:(pbr.metallicFactor??0),
-              emissive:(m.emissiveFactor||[0,0,0]).slice()
-            });
-          }
-          // rendu très lisible :
-          pbr.setRoughnessFactor(0.25);
-          pbr.setMetallicFactor(0.05);
-          const base = pbr.baseColorFactor || [0.6,0.6,0.6,1];
-          const k = 0.8;
-          pbr.setBaseColorFactor([Math.max(base[0],k),Math.max(base[1],k),Math.max(base[2],k),base[3]]);
-          m.emissiveFactor = [0.38,0.38,0.38]; // auto-éclairage léger
-        });
-      } else {
-        mats.forEach(m=>{
-          const o = originalMat.get(m);
-          if (!o) return;
-          const pbr = m.pbrMetallicRoughness;
-          pbr.setBaseColorFactor(o.base);
-          pbr.setRoughnessFactor(o.rough);
-          pbr.setMetallicFactor(o.metal);
-          m.emissiveFactor = o.emissive;
-        });
-      }
-    }
+    const ISO = { orbit:"30deg 60deg auto", fov:"55deg" };
 
     function waitLoad(){
       return mv.model ? Promise.resolve() : new Promise(res=>mv.addEventListener('load',res,{once:true}));
     }
     function applyIso(){
-      mv.cameraOrbit = "30deg 60deg auto";
-      mv.fieldOfView = "55deg";
+      mv.cameraOrbit = ISO.orbit;
+      mv.fieldOfView = ISO.fov;
       mv.scale.set ? mv.scale.set(0.28,0.28,0.28) : mv.setAttribute('scale','0.28 0.28 0.28');
     }
 
-    function applyGalaxy(on){
-      if (on) {
-        mv.setAttribute('skybox-image', SKYBOX);
-        mv.setAttribute('environment-image','neutral');
-        mv.environmentIntensity = 6.0;
-        mv.exposure = 4.0;
-        applyEmissiveBoost(true);   // << clé : visible même si le fond est très sombre
-      } else {
-        mv.removeAttribute('skybox-image');
-        mv.setAttribute('environment-image','neutral');
-        mv.environmentIntensity = 3.6;
-        mv.exposure = 3.0;
-        applyEmissiveBoost(false);  // on restaure les matériaux d'origine
-      }
+    // ——— Galaxie en pur fond CSS + boost de lumière (aucun effet secondaire)
+    function setGalaxy(on){
+      bg.classList.toggle('on', on);        // affiche le PNG en arrière-plan
+      mv.environmentImage = 'neutral';      // garantit la lumière
+      if (on){ mv.environmentIntensity = 4.8; mv.exposure = 3.6; }
+      else   { mv.environmentIntensity = 3.6; mv.exposure = 3.0; }
+      try{ localStorage.setItem('galaxyEnabled', on?'1':'0'); }catch(e){}
+    }
+    function restoreGalaxy(){
+      let s=null; try{s=localStorage.getItem('galaxyEnabled');}catch(e){}
+      const on=(s!=='0');
+      tSky.checked=on; setGalaxy(on);
     }
 
+    // ——— Dimensions (hotspots)
     function setHotspotsVisibility(on){
       mv.querySelectorAll('button[slot^="hotspot-"]').forEach(el=> el.style.display = on ? 'inline-flex' : 'none');
     }
@@ -180,26 +142,22 @@
       setHotspotsVisibility(tDims.checked);
     }
 
+    // ——— Listeners
     cfg.addEventListener('change', async ()=>{
       mv.src = MODELS[cfg.value] || MODELS.full;
-      await waitLoad();
-      applyIso();
-      saveOriginalMaterials();
-      placeDimensionHotspots();
-      applyGalaxy(tSky.checked);
+      await waitLoad(); applyIso(); placeDimensionHotspots(); setGalaxy(tSky.checked);
     });
-    tSky.addEventListener('change', ()=> applyGalaxy(tSky.checked));
+    tSky.addEventListener('change', ()=> setGalaxy(tSky.checked));
     tDims.addEventListener('change', ()=> setHotspotsVisibility(tDims.checked));
     btnR.addEventListener('click', applyIso);
 
+    // ——— Init
     (async ()=>{
       await waitLoad();
       applyIso();
-      saveOriginalMaterials();
       placeDimensionHotspots();
       setHotspotsVisibility(tDims.checked);
-      tSky.checked = true;
-      applyGalaxy(true);
+      restoreGalaxy();                 // galaxie selon la préférence (ON par défaut)
     })();
   </script>
 </body>

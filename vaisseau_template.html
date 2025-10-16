@@ -162,36 +162,84 @@
       setNight(saved);
     })();
   </script>
-  <script>
-  // Applique une texture d'astéroïde sur tous les matériaux du modèle
-  function applyAsteroidTexture() {
-    if (!mv.model) return;
-
-    const mapBase = "./cratered-rock-albedo.png";   // mets ce nom exact dans le repo
-    const mapNorm = "./cratered-rock-normal.png";   // optionnel mais recommandé
-
-    const imgBase = new Image(); imgBase.crossOrigin = "anonymous"; imgBase.src = mapBase;
-    imgBase.onload = () => {
-      const texBase = mv.createTexture(imgBase);
-      for (const mat of mv.model.materials) {
-        const pbr = mat.pbrMetallicRoughness;
-        pbr.baseColorTexture.setTexture(texBase);
-        pbr.setMetallicFactor(0.0);
-        pbr.setRoughnessFactor(0.95);
-      }
-    };
-
-    // Normal map (si dispo)
-    const imgNorm = new Image(); imgNorm.crossOrigin = "anonymous"; imgNorm.src = mapNorm;
-    imgNorm.onload = () => {
-      const texNorm = mv.createTexture(imgNorm);
-      for (const mat of mv.model.materials) {
-        if (mat.normalTexture) mat.normalTexture.setTexture(texNorm);
-      }
-    };
+<script>
+(async function () {
+  // 1) Attendre que <model-viewer> soit défini
+  if (!customElements.get('model-viewer')) {
+    await customElements.whenDefined('model-viewer');
   }
 
-  mv.addEventListener('load', applyAsteroidTexture);
+  const mv = document.getElementById('mv');
+  const ALBEDO_URL = "./cratered-rock-albedo.png";
+  const NORMAL_URL = "./cratered-rock-normal.png";
+
+  // Utilitaire: charge une image et renvoie une Promise<texture>
+  function loadTexture(url) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous"; // ok même origine; safe si CDN un jour
+      img.onload = () => {
+        try { resolve(mv.createTexture(img)); }
+        catch (e) { reject(e); }
+      };
+      img.onerror = () => reject(new Error("Impossible de charger " + url));
+      img.src = url + "?v=" + Date.now(); // cache-bust pour GitHub Pages
+    });
+  }
+
+  async function applyAsteroidLook() {
+    // 2) Attendre le modèle si pas prêt
+    if (!mv.model) {
+      await new Promise(res => mv.addEventListener('load', res, { once: true }));
+    }
+
+    // 3) Charger les textures
+    let texBase = null, texNorm = null;
+    try {
+      [texBase, texNorm] = await Promise.all([
+        loadTexture(ALBEDO_URL),
+        loadTexture(NORMAL_URL)
+      ]);
+    } catch (err) {
+      console.warn("[asteroid-texture] Échec chargement textures:", err);
+      return;
+    }
+
+    // 4) Appliquer sur tous les matériaux
+    const mats = mv.model?.materials || [];
+    mats.forEach(mat => {
+      const pbr = mat.pbrMetallicRoughness;
+      if (pbr?.baseColorTexture) pbr.baseColorTexture.setTexture(texBase);
+      // roche mate
+      pbr?.setMetallicFactor?.(0.0);
+      pbr?.setRoughnessFactor?.(0.95);
+
+      if (mat.normalTexture && texNorm) {
+        mat.normalTexture.setTexture(texNorm);
+        // renforce un peu le relief
+        try { mat.normalTexture.scale = 1.2; } catch {}
+      }
+    });
+
+    // (Optionnel) un peu plus de lumière pour lire le relief
+    mv.environmentIntensity = Math.max(3.6, mv.environmentIntensity || 3.6);
+    mv.exposure = Math.max(3.2, mv.exposure || 3.2);
+
+    console.log("[asteroid-texture] Appliqué sur", mats.length, "matériau(x)");
+  }
+
+  // 5) Première application
+  applyAsteroidLook();
+
+  // 6) Ré-application automatique après chaque changement de modèle
+  mv.addEventListener('load', applyAsteroidLook);
+
+  // 7) (Facultatif) ré-appliquer si tu as un <select id="cfg"> qui change mv.src
+  const cfg = document.getElementById('cfg');
+  if (cfg) cfg.addEventListener('change', () => {
+    // rien ici: l'event 'load' ci-dessus relancera applyAsteroidLook quand le nouveau GLB est prêt
+  });
+})();
 </script>
 </body>
 </html>

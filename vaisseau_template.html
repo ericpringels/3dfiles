@@ -2,14 +2,18 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8" />
-  <title>Goutte – Visualisation interactive</title>
+  <title>Goutte – Visualisation</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- Police -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-  <style>
-    html,body{height:100%;margin:0;background:#000;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
-    .wrap{position:relative;width:100%;height:100%}
-    model-viewer{width:100%;height:100%;background-color:transparent;--poster-color:transparent}
+  <!-- model-viewer (module + legacy fallback) -->
+  <script type="module" src="https://unpkg.com/@google/model-viewer@3.4.0/dist/model-viewer.min.js"></script>
+  <script nomodule src="https://unpkg.com/@google/model-viewer@3.4.0/dist/model-viewer-legacy.js"></script>
 
+  <style>
+    html,body{height:100%;margin:0;background:transparent;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+    .wrap{position:relative;width:100%;height:100%;min-height:320px}
+    model-viewer{width:100%;height:100%;--poster-color:transparent;background-color:transparent}
     .controls{position:absolute;top:12px;left:12px;display:flex;gap:8px;flex-wrap:wrap;
       padding:10px 12px;background:rgba(20,20,20,.6);color:#fff;border-radius:12px;backdrop-filter:blur(8px);z-index:5}
     .controls label{font-size:14px;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
@@ -18,35 +22,12 @@
     .footer{position:absolute;left:12px;bottom:12px;z-index:5}
     .btn{border:1px solid #444;border-radius:999px;padding:8px 12px;background:rgba(20,20,20,.6);color:#fff;font-size:13px;cursor:pointer}
     .btn:hover{border-color:#666}
-
-    /* Hotspots dimensions */
+    /* Hotspots */
     model-viewer::part(default-hotspot){background:transparent;border:none}
     .dimtag{display:flex;align-items:center;gap:6px;padding:4px 8px;border-radius:10px;
       background:rgba(0,0,0,.55);color:#fff;font-size:12px;box-shadow:0 1px 8px rgba(0,0,0,.35)}
     .tick{width:14px;height:2px;background:#fff;opacity:.9;border-radius:1px}
-
-    .toast{position:absolute;right:12px;top:12px;background:rgba(0,0,0,.65);color:#fff;
-      border-radius:10px;padding:10px 12px;font-size:12px;z-index:6;display:none}
   </style>
-
-  <!-- Charge model-viewer de manière fiable (multi-CDN) -->
-  <script type="module">
-    const cdns = [
-      "https://cdn.jsdelivr.net/npm/@google/model-viewer@3.4.0/dist/model-viewer.min.js",
-      "https://unpkg.com/@google/model-viewer@3.4.0/dist/model-viewer.min.js",
-      "https://modelviewer.dev/dist/model-viewer.min.js"
-    ];
-    (async () => {
-      for (const url of cdns) {
-        try { await import(url); return; }
-        catch(e) { console.warn("Échec chargement model-viewer depuis:", url); }
-      }
-      document.addEventListener('DOMContentLoaded', () => {
-        const t = document.getElementById('toast');
-        if (t) { t.textContent = "Impossible de charger model-viewer (CDN)."; t.style.display = "block"; }
-      });
-    })();
-  </script>
 </head>
 <body>
   <div class="wrap">
@@ -60,136 +41,116 @@
         </select>
       </label>
       <label><input type="checkbox" id="toggleDims"> Afficher les dimensions</label>
-      <label><input type="checkbox" id="toggleSky" checked> Galaxie</label>
+      <label><input type="checkbox" id="toggleSky"> Galaxie</label>
     </div>
 
     <div class="footer">
       <button id="reset" class="btn" type="button">Réinitialiser la vue</button>
     </div>
 
-    <div id="toast" class="toast"></div>
-
-    <!-- Le viewer -->
     <model-viewer id="mv"
       src="https://ericpringels.github.io/3dfiles/goutte59c_XL.glb"
       alt="Urne goutte – visualisation 3D"
-      camera-controls
+      camera-controls touch-action="pan-y" interaction-prompt="none"
+      tone-mapping="aces"
       camera-orbit="30deg 60deg auto"
+      camera-target="auto"
       field-of-view="55deg"
       min-field-of-view="35deg"
       max-field-of-view="85deg"
-      tone-mapping="aces"
-      exposure="3.2"
-      environment-image="./nightsky_2k.hdr"
-      environment-intensity="4.2"
-      shadow-intensity="0.6"
-      shadow-softness="0.9"
-      scale="0.28 0.28 0.28">
+      scale="0.28 0.28 0.28"
+      exposure="2.8"
+      environment-image="neutral"
+      environment-intensity="3.2"
+      shadow-intensity="0.5"
+      shadow-softness="0.8">
       <!-- Hotspots dimensions -->
       <button class="dimtag" slot="hotspot-x-min" style="display:none"><span class="tick"></span><span class="label">X</span></button>
       <button class="dimtag" slot="hotspot-x-max" style="display:none"><span class="tick"></span><span class="label">X</span></button>
-      <button class="dimtag" slot="hotspot-y-min" style="display:none"><span class="tick"></span><span class="label">Y</span></button>
-      <button class="dimtag" slot="hotspot-y-max" style="display:none"><span class="tick"></span><span class="label">Y</span></button>
       <button class="dimtag" slot="hotspot-z-min" style="display:none"><span class="tick"></span><span class="label">Z</span></button>
       <button class="dimtag" slot="hotspot-z-max" style="display:none"><span class="tick"></span><span class="label">Z</span></button>
+      <button class="dimtag" slot="hotspot-y-min" style="display:none"><span class="tick"></span><span class="label">Y</span></button>
+      <button class="dimtag" slot="hotspot-y-max" style="display:none"><span class="tick"></span><span class="label">Y</span></button>
     </model-viewer>
   </div>
 
   <script>
-    (async function main(){
-      // Attendre que le custom element soit défini
-      if (!customElements.get('model-viewer')) {
-        await customElements.whenDefined('model-viewer');
-      }
+    const mv   = document.getElementById('mv');
+    const cfg  = document.getElementById('cfg');
+    const tDims= document.getElementById('toggleDims');
+    const tSky = document.getElementById('toggleSky');
+    const btnR = document.getElementById('reset');
 
-      const mv   = document.getElementById('mv');
-      const cfg  = document.getElementById('cfg');
-      const tDims= document.getElementById('toggleDims');
-      const tSky = document.getElementById('toggleSky');
-      const btnR = document.getElementById('reset');
-      const toast= document.getElementById('toast');
+    const MODELS = {
+      full: "https://ericpringels.github.io/3dfiles/goutte59c_XL.glb",
+      open: "https://ericpringels.github.io/3dfiles/goutte59c_XL_bas.glb",
+      top : "https://ericpringels.github.io/3dfiles/goutte59c_XL_haut.glb"
+    };
+    const SKYBOX = "./multi_nebulae_1.png";
+    const ISO = { orbit:"30deg 60deg auto", fov:"55deg" };
 
-      const MODELS = {
-        full: "https://ericpringels.github.io/3dfiles/goutte59c_XL.glb",
-        open: "https://ericpringels.github.io/3dfiles/goutte59c_XL_bas.glb",
-        top : "https://ericpringels.github.io/3dfiles/goutte59c_XL_haut.glb"
-      };
-      const SKYBOX = "./multi_nebulae_1.png";
+    function waitLoad(){
+      return mv.model ? Promise.resolve() : new Promise(res=>mv.addEventListener('load',res,{once:true}));
+    }
+    function applyIso(){
+      mv.cameraOrbit = ISO.orbit;
+      mv.fieldOfView = ISO.fov;
+      mv.scale.set ? mv.scale.set(0.28,0.28,0.28) : mv.setAttribute('scale','0.28 0.28 0.28');
+    }
 
-      function show(msg){ toast.textContent = msg; toast.style.display = "block"; clearTimeout(show._t); show._t=setTimeout(()=>toast.style.display="none",2200); }
-      function waitLoad(){ return mv.model?Promise.resolve():new Promise(res=>mv.addEventListener('load',res,{once:true})); }
-      function applyView(){ mv.cameraOrbit="30deg 60deg auto"; mv.fieldOfView="55deg"; mv.scale.set?mv.scale.set(0.28,0.28,0.28):mv.setAttribute('scale','0.28 0.28 0.28'); }
+    function applySky(on){
+      if(on) mv.setAttribute('skybox-image', SKYBOX);
+      else mv.removeAttribute('skybox-image');
+      try{ localStorage.setItem('galaxyEnabled', on?'1':'0'); }catch(e){}
+    }
+    function restoreSky(){
+      let s=null; try{s=localStorage.getItem('galaxyEnabled');}catch(e){}
+      const on=(s!=='0'); tSky.checked=on; applySky(on);
+    }
 
-      // Vérifie l'HDR; si absent → neutral
-      async function ensureHDR(){
-        try {
-          const r = await fetch('./nightsky_2k.hdr', {method:'HEAD', cache:'no-store'});
-          if (!r.ok) throw 0;
-          mv.setAttribute('environment-image','./nightsky_2k.hdr');
-          mv.environmentIntensity = 4.2;
-          mv.exposure = 3.2;
-        } catch {
-          mv.setAttribute('environment-image','neutral');
-          mv.environmentIntensity = 3.0;
-          mv.exposure = 2.6;
-          show("HDR non trouvé : éclairage neutre utilisé.");
-        }
-      }
-
-      // Skybox + persistance
-      function applySky(on){
-        if(on) mv.setAttribute('skybox-image', SKYBOX);
-        else   mv.removeAttribute('skybox-image');
-        try{ localStorage.setItem('galaxy', on ? '1' : '0'); }catch(e){}
-      }
-      function restoreSky(){
-        let s=null; try{s=localStorage.getItem('galaxy');}catch(e){}
-        const on=(s!=='0');
-        tSky.checked=on; applySky(on);
-      }
-
-      // Hotspots dimensions
-      function setHotspotsVisibility(on){
-        mv.querySelectorAll('button[slot^="hotspot-"]').forEach(el=> el.style.display = on ? 'inline-flex' : 'none');
-      }
-      function updateHotspots(){
-        if (!mv.model) return;
-        const d = mv.getDimensions();
-        if (!d || !isFinite(d.x)) return;
-        const hx=d.x/2, hy=d.y/2, hz=d.z/2;
-        const entries = [
-          ['hotspot-x-min',[-hx,0,0],`Largeur ${(d.x*100).toFixed(1)} cm`],
-          ['hotspot-x-max',[ hx,0,0],`Largeur ${(d.x*100).toFixed(1)} cm`],
-          ['hotspot-y-min',[0,-hy,0],`Hauteur ${(d.y*100).toFixed(1)} cm`],
-          ['hotspot-y-max',[0, hy,0],`Hauteur ${(d.y*100).toFixed(1)} cm`],
-          ['hotspot-z-min',[0,0,-hz],`Profondeur ${(d.z*100).toFixed(1)} cm`],
-          ['hotspot-z-max',[0,0, hz],`Profondeur ${(d.z*100).toFixed(1)} cm`]
-        ];
-        for (const [slot,pos,label] of entries){
-          const el = mv.querySelector(`[slot="${slot}"]`);
-          if (!el) continue;
-          el.dataset.position = pos.join(' ');
-          const lab = el.querySelector('.label'); if (lab) lab.textContent = label;
-        }
-        setHotspotsVisibility(tDims.checked);
-      }
-
-      // Listeners
-      tSky.addEventListener('change', ()=>applySky(tSky.checked));
-      tDims.addEventListener('change', ()=>setHotspotsVisibility(tDims.checked));
-      btnR.addEventListener('click', applyView);
-      cfg.addEventListener('change', async ()=>{
-        mv.src = MODELS[cfg.value] || MODELS.full;
-        await waitLoad(); applyView(); updateHotspots();
+    function setHotspotsVisibility(on){
+      mv.querySelectorAll('button[slot^="hotspot-"]').forEach(el=> el.style.display = on ? 'inline-flex' : 'none');
+    }
+    function placeDimensionHotspots(){
+      if (!mv.model) return;
+      const d = mv.getDimensions(); if(!d) return;
+      const hx=d.x/2, hy=d.y/2, hz=d.z/2;
+      const items = [
+        ['hotspot-x-min',[-hx,0,0],`Largeur ${(d.x*100).toFixed(1)} cm`],
+        ['hotspot-x-max',[ hx,0,0],`Largeur ${(d.x*100).toFixed(1)} cm`],
+        ['hotspot-z-min',[0,0,-hz],`Profondeur ${(d.z*100).toFixed(1)} cm`],
+        ['hotspot-z-max',[0,0, hz],`Profondeur ${(d.z*100).toFixed(1)} cm`],
+        ['hotspot-y-min',[0,-hy,0],`Hauteur ${(d.y*100).toFixed(1)} cm`],
+        ['hotspot-y-max',[0, hy,0],`Hauteur ${(d.y*100).toFixed(1)} cm`],
+      ];
+      items.forEach(([slot,pos,label])=>{
+        const el = mv.querySelector(`[slot="${slot}"]`);
+        if(!el) return;
+        el.dataset.position = pos.join(' ');
+        const lab = el.querySelector('.label'); if(lab) lab.textContent = label;
       });
+      setHotspotsVisibility(tDims.checked);
+    }
 
-      // INIT
+    // Listeners
+    cfg.addEventListener('change', async ()=>{
+      mv.src = MODELS[cfg.value] || MODELS.full;
+      await waitLoad(); applyIso(); placeDimensionHotspots();
+    });
+    tSky.addEventListener('change', ()=>applySky(tSky.checked));
+    tDims.addEventListener('change', ()=>setHotspotsVisibility(tDims.checked));
+    btnR.addEventListener('click', applyIso);
+
+    // Init
+    (async ()=>{
       restoreSky();
       await waitLoad();
-      await ensureHDR();
-      applyView();
-      updateHotspots();
+      applyIso();
+      placeDimensionHotspots();
       setHotspotsVisibility(tDims.checked);
+      // Si tu veux plus de lumière neutre :
+      mv.environmentIntensity = 3.8;
+      mv.exposure = 3.2;
     })();
   </script>
 </body>

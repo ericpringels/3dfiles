@@ -83,6 +83,54 @@
     };
     const SKYBOX = "./multi_nebulae_1.png";
 
+    const originalMat = new Map();
+    function saveOriginalMaterials() {
+      const mats = mv.model?.materials || [];
+      mats.forEach((m, i) => {
+        if (originalMat.has(m)) return;
+        const pbr = m.pbrMetallicRoughness;
+        originalMat.set(m, {
+          base: (pbr.baseColorFactor || [1,1,1,1]).slice(),
+          rough: (pbr.roughnessFactor ?? 1),
+          metal: (pbr.metallicFactor ?? 0),
+          emissive: (m.emissiveFactor || [0,0,0]).slice()
+        });
+      });
+    }
+    function applyEmissiveBoost(on){
+      const mats = mv.model?.materials || [];
+      if (on){
+        mats.forEach(m=>{
+          const pbr = m.pbrMetallicRoughness;
+          if (!originalMat.has(m)) { // au cas où
+            originalMat.set(m, {
+              base:(pbr.baseColorFactor||[1,1,1,1]).slice(),
+              rough:(pbr.roughnessFactor??1),
+              metal:(pbr.metallicFactor??0),
+              emissive:(m.emissiveFactor||[0,0,0]).slice()
+            });
+          }
+          // rendu très lisible :
+          pbr.setRoughnessFactor(0.25);
+          pbr.setMetallicFactor(0.05);
+          const base = pbr.baseColorFactor || [0.6,0.6,0.6,1];
+          const k = 0.8;
+          pbr.setBaseColorFactor([Math.max(base[0],k),Math.max(base[1],k),Math.max(base[2],k),base[3]]);
+          m.emissiveFactor = [0.38,0.38,0.38]; // auto-éclairage léger
+        });
+      } else {
+        mats.forEach(m=>{
+          const o = originalMat.get(m);
+          if (!o) return;
+          const pbr = m.pbrMetallicRoughness;
+          pbr.setBaseColorFactor(o.base);
+          pbr.setRoughnessFactor(o.rough);
+          pbr.setMetallicFactor(o.metal);
+          m.emissiveFactor = o.emissive;
+        });
+      }
+    }
+
     function waitLoad(){
       return mv.model ? Promise.resolve() : new Promise(res=>mv.addEventListener('load',res,{once:true}));
     }
@@ -92,22 +140,22 @@
       mv.scale.set ? mv.scale.set(0.28,0.28,0.28) : mv.setAttribute('scale','0.28 0.28 0.28');
     }
 
-    // Éclairage/skybox
     function applyGalaxy(on){
       if (on) {
-        mv.setAttribute('skybox-image', SKYBOX);      // affiche la galaxie en fond
-        mv.setAttribute('environment-image','neutral'); // force la lumière neutre
-        mv.environmentIntensity = 4.8;                 // boost lumière
-        mv.exposure = 3.6;
+        mv.setAttribute('skybox-image', SKYBOX);
+        mv.setAttribute('environment-image','neutral');
+        mv.environmentIntensity = 6.0;
+        mv.exposure = 4.0;
+        applyEmissiveBoost(true);   // << clé : visible même si le fond est très sombre
       } else {
         mv.removeAttribute('skybox-image');
         mv.setAttribute('environment-image','neutral');
         mv.environmentIntensity = 3.6;
         mv.exposure = 3.0;
+        applyEmissiveBoost(false);  // on restaure les matériaux d'origine
       }
     }
 
-    // Hotspots
     function setHotspotsVisibility(on){
       mv.querySelectorAll('button[slot^="hotspot-"]').forEach(el=> el.style.display = on ? 'inline-flex' : 'none');
     }
@@ -132,11 +180,11 @@
       setHotspotsVisibility(tDims.checked);
     }
 
-    // Listeners
     cfg.addEventListener('change', async ()=>{
       mv.src = MODELS[cfg.value] || MODELS.full;
       await waitLoad();
       applyIso();
+      saveOriginalMaterials();
       placeDimensionHotspots();
       applyGalaxy(tSky.checked);
     });
@@ -144,14 +192,14 @@
     tDims.addEventListener('change', ()=> setHotspotsVisibility(tDims.checked));
     btnR.addEventListener('click', applyIso);
 
-    // Init
     (async ()=>{
       await waitLoad();
       applyIso();
+      saveOriginalMaterials();
       placeDimensionHotspots();
       setHotspotsVisibility(tDims.checked);
-      tSky.checked = true;           // galaxie ON par défaut
-      applyGalaxy(true);             // éclairage boosté + fond galaxie
+      tSky.checked = true;
+      applyGalaxy(true);
     })();
   </script>
 </body>

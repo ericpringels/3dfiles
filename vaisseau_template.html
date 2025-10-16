@@ -162,5 +162,37 @@
       setNight(saved);
     })();
   </script>
+  <script>
+  // Applique une texture d'astéroïde sur tous les matériaux du modèle
+  function applyAsteroidTexture() {
+    if (!mv.model) return;
+
+    const mapBase = "./cratered-rock-albedo.png";   // mets ce nom exact dans le repo
+    const mapNorm = "./cratered-rock-normal.png";   // optionnel mais recommandé
+
+    const imgBase = new Image(); imgBase.crossOrigin = "anonymous"; imgBase.src = mapBase;
+    imgBase.onload = () => {
+      const texBase = mv.createTexture(imgBase);
+      for (const mat of mv.model.materials) {
+        const pbr = mat.pbrMetallicRoughness;
+        pbr.baseColorTexture.setTexture(texBase);
+        pbr.setMetallicFactor(0.0);
+        pbr.setRoughnessFactor(0.95);
+      }
+    };
+
+    // Normal map (si dispo)
+    const imgNorm = new Image(); imgNorm.crossOrigin = "anonymous"; imgNorm.src = mapNorm;
+    imgNorm.onload = () => {
+      const texNorm = mv.createTexture(imgNorm);
+      for (const mat of mv.model.materials) {
+        if (mat.normalTexture) mat.normalTexture.setTexture(texNorm);
+      }
+    };
+  }
+
+  mv.addEventListener('load', applyAsteroidTexture);
+</script>
 </body>
 </html>
+

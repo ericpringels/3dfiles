@@ -11,7 +11,7 @@
   <script nomodule src="https://unpkg.com/@google/model-viewer@3.4.0/dist/model-viewer-legacy.js"></script>
 
   <style>
-    html,body{height:100%;margin:0;background:transparent;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+    html,body{height:100%;margin:0;background:#000;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
     .wrap{position:relative;width:100%;height:100%;min-height:320px}
     model-viewer{width:100%;height:100%;--poster-color:transparent;background-color:transparent}
     .controls{position:absolute;top:12px;left:12px;display:flex;gap:8px;flex-wrap:wrap;
@@ -41,7 +41,7 @@
         </select>
       </label>
       <label><input type="checkbox" id="toggleDims"> Afficher les dimensions</label>
-      <label><input type="checkbox" id="toggleSky"> Galaxie</label>
+      <label><input type="checkbox" id="toggleSky" checked> Galaxie</label>
     </div>
 
     <div class="footer">
@@ -59,11 +59,11 @@
       min-field-of-view="35deg"
       max-field-of-view="85deg"
       scale="0.28 0.28 0.28"
-      exposure="2.8"
+      exposure="3.0"
       environment-image="neutral"
-      environment-intensity="3.2"
-      shadow-intensity="0.5"
-      shadow-softness="0.8">
+      environment-intensity="3.6"
+      shadow-intensity="0.6"
+      shadow-softness="0.9">
       <!-- Hotspots dimensions -->
       <button class="dimtag" slot="hotspot-x-min" style="display:none"><span class="tick"></span><span class="label">X</span></button>
       <button class="dimtag" slot="hotspot-x-max" style="display:none"><span class="tick"></span><span class="label">X</span></button>
@@ -98,16 +98,68 @@
       mv.scale.set ? mv.scale.set(0.28,0.28,0.28) : mv.setAttribute('scale','0.28 0.28 0.28');
     }
 
-    function applySky(on){
-      if(on) mv.setAttribute('skybox-image', SKYBOX);
-      else mv.removeAttribute('skybox-image');
-      try{ localStorage.setItem('galaxyEnabled', on?'1':'0'); }catch(e){}
+    // ——— Boost matériau pour garantir la lisibilité (si matière trop sombre)
+    function brightenMaterials(){
+      try{
+        const mats = mv.model?.materials || [];
+        mats.forEach(m=>{
+          const pbr = m.pbrMetallicRoughness;
+          const base = pbr.baseColorFactor ?? [0.2,0.2,0.2,1];
+          const avg = (base[0]+base[1]+base[2])/3;
+          if (avg < 0.55) {
+            const k = 0.85;
+            pbr.setBaseColorFactor([Math.max(base[0],k),Math.max(base[1],k),Math.max(base[2],k),base[3]]);
+          }
+          if ((pbr.roughnessFactor ?? 0.6) > 0.45) pbr.setRoughnessFactor(0.4);
+          if ((pbr.metallicFactor ?? 0.0) < 0.2)  pbr.setMetallicFactor(0.25);
+        });
+      }catch(e){}
     }
-    function restoreSky(){
-      let s=null; try{s=localStorage.getItem('galaxyEnabled');}catch(e){}
-      const on=(s!=='0'); tSky.checked=on; applySky(on);
-    }
+    mv.addEventListener('scene-graph-ready', brightenMaterials);
 
+    // ——— Switch modèles
+    cfg.addEventListener('change', async ()=>{
+      mv.src = MODELS[cfg.value] || MODELS.full;
+      await waitLoad();
+      applyIso();
+      placeDimensionHotspots();
+      if (!tDims.checked) setHotspotsVisibility(false);
+      brightenMaterials();
+      // ré-applique le mode galaxie si actif
+      applyGalaxyMode(tSky.checked, true);
+    });
+
+    // ——— Skybox + éclairage renforcé en mode galaxie
+    function tweenExposure(from,to,ms=300){
+      const start = performance.now();
+      mv.exposure = from;
+      function step(t){
+        const p = Math.min((t-start)/ms,1);
+        mv.exposure = from + (to-from)*p;
+        if (p<1) requestAnimationFrame(step);
+      }
+      requestAnimationFrame(step);
+    }
+    function applyGalaxyMode(on, noAnim=false){
+      if (on) {
+        // fond galaxie
+        mv.setAttribute('skybox-image', SKYBOX);
+        // on GARDE l'environnement "neutral" (HDR intégré) pour éclairer
+        mv.environmentIntensity = 4.6;    // boost IBL
+        if (noAnim) { mv.exposure = 3.6; }
+        else        { tweenExposure(mv.exposure ?? 3.0, 3.6, 320); }
+        mv.shadowIntensity = 0.7;
+      } else {
+        mv.removeAttribute('skybox-image');
+        mv.environmentIntensity = 3.4;
+        if (noAnim) { mv.exposure = 3.0; }
+        else        { tweenExposure(mv.exposure ?? 3.6, 3.0, 320); }
+        mv.shadowIntensity = 0.6;
+      }
+    }
+    tSky.addEventListener('change', ()=> applyGalaxyMode(tSky.checked));
+
+    // ——— Dimensions (hotspots)
     function setHotspotsVisibility(on){
       mv.querySelectorAll('button[slot^="hotspot-"]').forEach(el=> el.style.display = on ? 'inline-flex' : 'none');
     }
@@ -131,26 +183,21 @@
       });
       setHotspotsVisibility(tDims.checked);
     }
-
-    // Listeners
-    cfg.addEventListener('change', async ()=>{
-      mv.src = MODELS[cfg.value] || MODELS.full;
-      await waitLoad(); applyIso(); placeDimensionHotspots();
-    });
-    tSky.addEventListener('change', ()=>applySky(tSky.checked));
     tDims.addEventListener('change', ()=>setHotspotsVisibility(tDims.checked));
+
+    // ——— Reset vue
     btnR.addEventListener('click', applyIso);
 
-    // Init
+    // ——— Init
     (async ()=>{
-      restoreSky();
       await waitLoad();
       applyIso();
       placeDimensionHotspots();
       setHotspotsVisibility(tDims.checked);
-      // Si tu veux plus de lumière neutre :
-      mv.environmentIntensity = 3.8;
-      mv.exposure = 3.2;
+      brightenMaterials();
+      // Par défaut : mode galaxie ON bien lumineux
+      applyGalaxyMode(true, true);
+      tSky.checked = true;
     })();
   </script>
 </body>

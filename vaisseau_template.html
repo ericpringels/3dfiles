@@ -12,13 +12,14 @@
   <!-- Précharge la skybox -->
   <link rel="preload" as="image" href="./multi_nebulae_1.png" />
 
-  <!-- model-viewer -->
+  <!-- model-viewer (v3.x) -->
   <script type="module" src="https://cdn.jsdelivr.net/npm/@google/model-viewer@3.4.0/dist/model-viewer.min.js"></script>
 
   <style>
     html,body{height:100%;margin:0;background:transparent;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
     .wrap{position:relative;width:100%;height:100%;min-height:320px;background:transparent}
     model-viewer{width:100%;height:100%;background-color:transparent;--poster-color:transparent}
+
     .controls{position:absolute;top:12px;left:12px;display:flex;gap:8px;flex-wrap:wrap;
       padding:10px 12px;background:rgba(20,20,20,.6);color:#fff;border-radius:12px;
       backdrop-filter:blur(8px);z-index:5}
@@ -29,11 +30,17 @@
     .footer{position:absolute;left:12px;bottom:12px;z-index:5}
     .btn{border:1px solid #444;border-radius:999px;padding:8px 12px;background:rgba(20,20,20,.6);color:#fff;font-size:13px;cursor:pointer}
     .btn:hover{border-color:#666}
+
+    /* Hotspots dimensions */
+    model-viewer::part(default-hotspot){background:transparent;border:none}
+    .dimtag{display:flex;align-items:center;gap:6px;padding:4px 8px;border-radius:10px;
+      background:rgba(0,0,0,.55);color:#fff;font-size:12px;box-shadow:0 1px 8px rgba(0,0,0,.35)}
+    .tick{width:14px;height:2px;background:#fff;opacity:.9;border-radius:1px;transform:rotate(.0001deg)}
   </style>
 </head>
 <body>
   <div class="wrap">
-    <div class="controls">
+    <div class="controls" role="group" aria-label="Contrôles">
       <label>
         <span>Configuration</span>
         <select id="cfg">
@@ -43,6 +50,7 @@
         </select>
       </label>
 
+      <label><input type="checkbox" id="toggleDims"> Afficher les dimensions</label>
       <label><input type="checkbox" id="toggleSky" checked> Galaxie</label>
     </div>
 
@@ -53,28 +61,54 @@
     <!-- Viewer -->
     <model-viewer id="mv"
       src="https://ericpringels.github.io/3dfiles/goutte59c_XL.glb"
-      camera-controls touch-action="pan-y"
+      camera-controls touch-action="pan-y" interaction-prompt="none"
+      tone-mapping="aces"
       style="background-color:transparent"
       alt="Urne goutte – visualisation 3D"
-      tone-mapping="aces"
       camera-orbit="30deg 60deg auto"
       camera-target="auto"
       field-of-view="55deg"
-      scale="0.55 0.55 0.55"
-      exposure="2.4"
-      environment-intensity="2.5"
-      shadow-intensity="0.3"
+      min-field-of-view="35deg"
+      max-field-of-view="80deg"
+      scale="0.38 0.38 0.38"        <!-- plus petit -->
+      exposure="2.8"
+      environment-intensity="3.8"
+      shadow-intensity="0.4"
+      shadow-softness="0.7"
     >
-      <!-- Éclairage directionnel -->
-      <directional-light color="#ffffff" intensity="1.2" direction="1 1 1"></directional-light>
-      <directional-light color="#ffffff" intensity="0.8" direction="-1 0.5 -0.5"></directional-light>
-      <directional-light color="#ffffff" intensity="0.6" direction="0 -1 0.5"></directional-light>
+      <!-- Éclairage directionnel (3 points) -->
+      <directional-light color="#ffffff" intensity="2.2" direction="0.9 1 0.6"></directional-light>
+      <directional-light color="#ffffff" intensity="1.4" direction="-0.7 0.5 -0.3"></directional-light>
+      <directional-light color="#ffffff" intensity="0.9" direction="0 -1 0.8"></directional-light>
+
+      <!-- Hotspots dimensions : X -->
+      <button class="dimtag" slot="hotspot-x-min" data-dim="x" data-end="min" style="display:none">
+        <span class="tick"></span><span class="label">X</span>
+      </button>
+      <button class="dimtag" slot="hotspot-x-max" data-dim="x" data-end="max" style="display:none">
+        <span class="tick"></span><span class="label">X</span>
+      </button>
+      <!-- Z -->
+      <button class="dimtag" slot="hotspot-z-min" data-dim="z" data-end="min" style="display:none">
+        <span class="tick"></span><span class="label">Z</span>
+      </button>
+      <button class="dimtag" slot="hotspot-z-max" data-dim="z" data-end="max" style="display:none">
+        <span class="tick"></span><span class="label">Z</span>
+      </button>
+      <!-- Y -->
+      <button class="dimtag" slot="hotspot-y-min" data-dim="y" data-end="min" style="display:none">
+        <span class="tick"></span><span class="label">Y</span>
+      </button>
+      <button class="dimtag" slot="hotspot-y-max" data-dim="y" data-end="max" style="display:none">
+        <span class="tick"></span><span class="label">Y</span>
+      </button>
     </model-viewer>
   </div>
 
   <script>
-    const mv = document.getElementById('mv');
-    const cfg = document.getElementById('cfg');
+    const mv   = document.getElementById('mv');
+    const cfg  = document.getElementById('cfg');
+    const tDims= document.getElementById('toggleDims');
     const tSky = document.getElementById('toggleSky');
     const btnR = document.getElementById('reset');
 
@@ -85,7 +119,6 @@
     };
 
     const GALAXY_URL = "./multi_nebulae_1.png";
-
     const ISO = { orbit:"30deg 60deg auto", target:"auto", fov:"55deg" };
     function applyIso(){ mv.cameraOrbit=ISO.orbit; mv.cameraTarget=ISO.target; mv.fieldOfView=ISO.fov; }
 
@@ -94,7 +127,36 @@
       return new Promise(res => { const onL=()=>{mv.removeEventListener('load',onL);res();}; mv.addEventListener('load',onL); });
     }
 
-    function tweenExposure(from, to, ms=500){
+    /* ---------- Dimensions (hotspots) ---------- */
+    function setHotspotsVisibility(on){
+      mv.querySelectorAll('button[slot^="hotspot-"]').forEach(el=> el.style.display = on ? 'inline-flex' : 'none');
+    }
+    function placeDimensionHotspots(){
+      if (!mv.model) return;
+      const d = mv.getDimensions();
+      const hx=d.x/2, hy=d.y/2, hz=d.z/2;
+      const map = [
+        {slot:'hotspot-x-min',pos:`${-hx} 0 0`, axis:'x', len:d.x},
+        {slot:'hotspot-x-max',pos:`${ hx} 0 0`, axis:'x', len:d.x},
+        {slot:'hotspot-z-min',pos:`0 0 ${-hz}`, axis:'z', len:d.z},
+        {slot:'hotspot-z-max',pos:`0 0 ${ hz}`, axis:'z', len:d.z},
+        {slot:'hotspot-y-min',pos:`0 ${-hy} 0`, axis:'y', len:d.y},
+        {slot:'hotspot-y-max',pos:`0 ${ hy} 0`, axis:'y', len:d.y},
+      ];
+      map.forEach(m=>{
+        const el = mv.querySelector(`[slot="${m.slot}"]`); if(!el) return;
+        el.dataset.position = m.pos;
+        el.dataset.normal = "0 1 0";
+        const cm = (m.len*100).toFixed(1);
+        el.querySelector(".label").textContent =
+          (m.axis==='x' ? `Largeur ${cm} cm` :
+           m.axis==='z' ? `Profondeur ${cm} cm` : `Hauteur ${cm} cm`);
+      });
+      setHotspotsVisibility(tDims.checked);
+    }
+
+    /* ---------- Exposition + Skybox ---------- */
+    function tweenExposure(from, to, ms=450){
       const start = performance.now();
       mv.exposure = from;
       function step(t){
@@ -104,40 +166,66 @@
       }
       requestAnimationFrame(step);
     }
-
     function applySkybox(on){
       if (on) {
         mv.setAttribute('skybox-image', GALAXY_URL);
         mv.setAttribute('environment-image', GALAXY_URL);
-        mv.environmentIntensity = 3.5;
-        tweenExposure(mv.exposure ?? 2.4, 2.8, 400);
+        mv.environmentIntensity = 4.2;   // IBL fort
+        tweenExposure(mv.exposure ?? 2.6, 3.0, 350);
       } else {
         mv.removeAttribute('skybox-image');
         mv.setAttribute('environment-image', 'neutral');
-        mv.environmentIntensity = 1.5;
-        tweenExposure(mv.exposure ?? 2.4, 1.4, 400);
+        mv.environmentIntensity = 1.8;
+        tweenExposure(mv.exposure ?? 2.6, 1.5, 350);
       }
     }
 
+    /* ---------- Boost matériaux si trop sombres ---------- */
+    function brightenMaterials(){
+      // allège la couleur de base et réduit la rugosité pour chaque matériau
+      try{
+        const mats = mv.model?.materials || [];
+        mats.forEach(mat=>{
+          const pbr = mat.pbrMetallicRoughness;
+          // Éclaircit baseColor (si très sombre)
+          const base = pbr.baseColorFactor; // [r,g,b,a]
+          const avg = (base[0]+base[1]+base[2])/3;
+          if (avg < 0.25) {
+            const k = 0.65; // push vers le clair
+            pbr.setBaseColorFactor([Math.max(base[0], k), Math.max(base[1], k), Math.max(base[2], k), base[3]]);
+          }
+          // Réduit la rugosité pour capter l'IBL
+          if (pbr.roughnessFactor > 0.6) pbr.setRoughnessFactor(0.45);
+          // Légère métallisation pour des reflets visibles
+          if (pbr.metallicFactor < 0.15) pbr.setMetallicFactor(0.2);
+        });
+      }catch(e){ /* ignore */ }
+    }
+
+    /* ---------- UI Listeners ---------- */
     cfg.addEventListener('change', async ()=>{
       mv.src = URLS[cfg.value] || URLS.full;
       await mv.updateComplete; await waitLoad();
       applyIso(); applySkybox(tSky.checked);
+      brightenMaterials();
+      placeDimensionHotspots();
+      if (!tDims.checked) setHotspotsVisibility(false);
     });
-
     tSky.addEventListener('change', ()=> applySkybox(tSky.checked));
+    tDims.addEventListener('change', ()=>{
+      setHotspotsVisibility(tDims.checked);
+      if (tDims.checked) placeDimensionHotspots();
+    });
     btnR.addEventListener('click', applyIso);
 
+    /* ---------- Init ---------- */
     mv.addEventListener('load', ()=>{
       applyIso();
+      applySkybox(true);         // galaxie cochée
+      brightenMaterials();       // s'assure que le matériau n'est pas noir
+      placeDimensionHotspots();  // prêt pour la case "dimensions"
+      setHotspotsVisibility(tDims.checked);
     });
-
-    (async ()=>{
-      await waitLoad();
-      mv.exposure = 2.4;
-      mv.environmentIntensity = 2.5;
-      applySkybox(true);
-    })();
   </script>
 </body>
 </html>

@@ -5,10 +5,9 @@
   <title>Goutte – Visualisation</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-  <!-- model-viewer (module + fallback) -->
+  <!-- model-viewer -->
   <script type="module" src="https://unpkg.com/@google/model-viewer@3.4.0/dist/model-viewer.min.js"></script>
   <script nomodule src="https://unpkg.com/@google/model-viewer@3.4.0/dist/model-viewer-legacy.js"></script>
-
   <style>
     html,body{height:100%;margin:0;background:transparent;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
     .wrap{position:relative;width:100%;height:100%}
@@ -39,7 +38,7 @@
         </select>
       </label>
       <label><input type="checkbox" id="toggleDims"> Afficher les dimensions</label>
-      <label><input type="checkbox" id="toggleSky" checked> Galaxie</label>
+      <label><input type="checkbox" id="toggleNight" checked> Nuit</label>
     </div>
 
     <div class="footer">
@@ -69,11 +68,11 @@
   </div>
 
   <script>
-    const mv   = document.getElementById('mv');
-    const cfg  = document.getElementById('cfg');
-    const tDims= document.getElementById('toggleDims');
-    const tSky = document.getElementById('toggleSky');
-    const btnR = document.getElementById('reset');
+    const mv       = document.getElementById('mv');
+    const cfg      = document.getElementById('cfg');
+    const tDims    = document.getElementById('toggleDims');
+    const tNight   = document.getElementById('toggleNight');
+    const btnR     = document.getElementById('reset');
 
     const MODELS = {
       full: "https://ericpringels.github.io/3dfiles/goutte59c_XL.glb",
@@ -90,33 +89,35 @@
       mv.scale.set ? mv.scale.set(0.28,0.28,0.28) : mv.setAttribute('scale','0.28 0.28 0.28');
     }
 
-    // ===== Skybox réaliste (qui tourne) + éclairage fiable =====
-    function setGalaxy(on){
-      if (on){
-        // Affiche le fond galaxie (et garde la lumière "neutral")
-        mv.setAttribute('skybox-image', "./earth_space_360.png");
-        mv.setAttribute('environment-image','neutral');
+    // === Mode "Nuit" (avec fond earth_space_360.png) ===
+    function setNight(on){
+      if(on){
+        mv.setAttribute('skybox-image', "./earth_space_360.png");   // fond qui bouge
+        mv.setAttribute('environment-image', 'neutral');            // lumière fiable
         mv.environmentIntensity = 4.8;
         mv.exposure = 3.6;
-        // Suit la rotation de caméra : on tourne la skybox sur l’axe Y
-        // (utilise la valeur theta de getCameraOrbit)
-        syncSkyboxToCamera(); // positionne une première fois
+        mv.shadowIntensity = 0.0;                                   // AUCUNE ombre
+        syncSkyboxToCamera();                                       // orientation initiale
       } else {
         mv.removeAttribute('skybox-image');
-        mv.setAttribute('environment-image','neutral');
+        mv.setAttribute('environment-image', 'neutral');
         mv.environmentIntensity = 3.6;
         mv.exposure = 3.0;
+        mv.shadowIntensity = 0.6;                                   // ombres normales
       }
-      try{ localStorage.setItem('galaxyEnabled', on ? '1':'0'); }catch(e){}
+      try{ localStorage.setItem('nightEnabled', on ? '1' : '0'); }catch(e){}
     }
 
+    // Fait tourner la skybox selon la caméra (réaliste)
     function syncSkyboxToCamera(){
-      const o = mv.getCameraOrbit(); // {theta, phi, radius} en radians
-      // On fait tourner le décor en Y (theta), sens inverse pour un ressenti naturel
-      mv.skyboxRotation = (-o.theta)+'rad';
+      const o = mv.getCameraOrbit();               // radians
+      mv.skyboxRotation = (-o.theta) + 'rad';      // rotation horizontale
     }
+    mv.addEventListener('camera-change', ()=>{
+      if (tNight.checked && mv.skyboxImage) syncSkyboxToCamera();
+    });
 
-    // ===== Dimensions (hotspots) =====
+    // === Dimensions (hotspots) ===
     function setHotspotsVisibility(on){
       mv.querySelectorAll('button[slot^="hotspot-"]').forEach(el=> el.style.display = on ? 'inline-flex' : 'none');
     }
@@ -141,31 +142,24 @@
       setHotspotsVisibility(tDims.checked);
     }
 
-    // ===== Listeners =====
+    // === Listeners ===
     cfg.addEventListener('change', async ()=>{
       mv.src = MODELS[cfg.value] || MODELS.full;
-      await waitLoad(); applyIso(); placeDimensionHotspots();
-      setGalaxy(tSky.checked); // réapplique le mode courant
+      await waitLoad(); applyIso(); placeDimensionHotspots(); setNight(tNight.checked);
     });
-    tSky.addEventListener('change', ()=> setGalaxy(tSky.checked));
+    tNight.addEventListener('change', ()=> setNight(tNight.checked));
     tDims.addEventListener('change', ()=> setHotspotsVisibility(tDims.checked));
     btnR.addEventListener('click', applyIso);
 
-    // Suit la caméra en continu quand la galaxie est active
-    mv.addEventListener('camera-change', ()=>{
-      if (tSky.checked && mv.skyboxImage) syncSkyboxToCamera();
-    });
-
-    // ===== Init =====
+    // === Init ===
     (async ()=>{
       await waitLoad();
       applyIso();
       placeDimensionHotspots();
       setHotspotsVisibility(tDims.checked);
-      // Par défaut : Galaxie ON (réaliste et lumineuse)
-      const saved = (localStorage.getItem('galaxyEnabled')!=='0');
-      tSky.checked = saved;
-      setGalaxy(saved);
+      const saved = (localStorage.getItem('nightEnabled')!=='0'); // par défaut: ON
+      tNight.checked = saved;
+      setNight(saved);
     })();
   </script>
 </body>

@@ -177,7 +177,7 @@
   function loadTexture(url) {
     return new Promise((resolve, reject) => {
       const img = new Image();
-      img.crossOrigin = "anonymous"; // ok même origine; safe si CDN un jour
+     // img.crossOrigin = "anonymous"; // ok même origine; safe si CDN un jour
       img.onload = () => {
         try { resolve(mv.createTexture(img)); }
         catch (e) { reject(e); }

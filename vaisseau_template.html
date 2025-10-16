@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 
-  <!-- Précharge la skybox -->
+  <!-- Précharge la skybox (fond) -->
   <link rel="preload" as="image" href="./multi_nebulae_1.png" />
 
   <!-- model-viewer -->
@@ -19,6 +19,7 @@
     html,body{height:100%;margin:0;background:transparent;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
     .wrap{position:relative;width:100%;height:100%;min-height:320px;background:transparent}
     model-viewer{width:100%;height:100%;background-color:transparent;--poster-color:transparent}
+
     .controls{position:absolute;top:12px;left:12px;display:flex;gap:8px;flex-wrap:wrap;
       padding:10px 12px;background:rgba(20,20,20,.6);color:#fff;border-radius:12px;
       backdrop-filter:blur(8px);z-index:5}
@@ -26,6 +27,7 @@
     .controls select,.controls input[type=checkbox]{accent-color:#999;background:#111;color:#fff;
       border:1px solid #444;border-radius:8px;padding:6px 8px;font-size:14px}
     .controls select{min-width:240px}
+
     .footer{position:absolute;left:12px;bottom:12px;z-index:5}
     .btn{border:1px solid #444;border-radius:999px;padding:8px 12px;background:rgba(20,20,20,.6);color:#fff;font-size:13px;cursor:pointer}
     .btn:hover{border-color:#666}
@@ -50,7 +52,7 @@
       </label>
 
       <label><input type="checkbox" id="toggleDims"> Afficher les dimensions</label>
-      <label><input type="checkbox" id="toggleSky" checked> Galaxie</label>
+      <label><input type="checkbox" id="toggleSky"> Galaxie</label>
     </div>
 
     <div class="footer">
@@ -61,36 +63,36 @@
     <model-viewer id="mv"
       src="https://ericpringels.github.io/3dfiles/goutte59c_XL.glb"
       camera-controls touch-action="pan-y" interaction-prompt="none"
-      tone-mapping="aces"
       style="background-color:transparent"
       alt="Urne goutte – visualisation 3D"
+      tone-mapping="aces"
       camera-orbit="30deg 60deg auto"
       camera-target="auto"
       field-of-view="55deg"
       min-field-of-view="35deg"
       max-field-of-view="85deg"
       scale="0.38 0.38 0.38"
-      exposure="3.0"
-      environment-intensity="4.5"
+      exposure="2.6"
+      environment-image="neutral"         <!-- IBL HDR fiable -->
+      environment-intensity="3.4"
       shadow-intensity="0.5"
       shadow-softness="0.8"
     >
-      <!-- 🎯 Lumières radicales -->
-      <!-- Key light (avant / haut droite) -->
-      <directional-light color="#ffffff" intensity="3.2" direction="0.9 1 0.6"></directional-light>
-      <!-- Fill (avant / gauche) -->
-      <directional-light color="#ffffff" intensity="2.2" direction="-0.8 0.7 0.2"></directional-light>
-      <!-- Rim (arrière) -->
-      <directional-light color="#ffffff" intensity="2.0" direction="0 -0.1 -1"></directional-light>
-      <!-- Top -->
-      <directional-light color="#ffffff" intensity="1.6" direction="0 1 0"></directional-light>
+      <!-- 💡 ÉCLAIRAGE RÉEL (positions, pas "direction") -->
+      <!-- key -->
+      <directional-light color="#ffffff" intensity="3.2" position="1 1 1"></directional-light>
+      <!-- fill -->
+      <directional-light color="#ffffff" intensity="2.4" position="-1 0.7 0.4"></directional-light>
+      <!-- rim back -->
+      <directional-light color="#ffffff" intensity="2.0" position="0 -0.2 -1"></directional-light>
+      <!-- top -->
+      <directional-light color="#ffffff" intensity="1.6" position="0 1 0"></directional-light>
 
-      <!-- Ambiance globale -->
-      <hemisphere-light sky-color="#dfe9ff" ground-color="#666a70" intensity="1.2"></hemisphere-light>
+      <hemisphere-light sky-color="#e8efff" ground-color="#6a6a70" intensity="1.2"></hemisphere-light>
 
-      <!-- Spots locaux (point-lights proches) -->
-      <point-light intensity="1800" position="0.25 0.35 0.35" color="#ffffff" range="3"></point-light>
-      <point-light intensity="1300" position="-0.35 -0.15 0.2" color="#ffd9b3" range="3"></point-light>
+      <!-- spots proches -->
+      <point-light intensity="1800" position="0.35 0.35 0.35" color="#ffffff" range="3"></point-light>
+      <point-light intensity="1300" position="-0.4 -0.15 0.25" color="#ffd9b3" range="3"></point-light>
 
       <!-- Hotspots dimensions -->
       <button class="dimtag" slot="hotspot-x-min" data-dim="x" data-end="min" style="display:none"><span class="tick"></span><span class="label">X</span></button>
@@ -152,8 +154,8 @@
       setHotspotsVisibility(tDims.checked);
     }
 
-    /* ---------- Exposition + Skybox ---------- */
-    function tweenExposure(from, to, ms=300){
+    /* ---------- Expo douce ---------- */
+    function tweenExposure(from, to, ms=250){
       const start = performance.now();
       mv.exposure = from;
       function step(t){
@@ -163,49 +165,43 @@
       }
       requestAnimationFrame(step);
     }
+
+    /* ---------- Skybox (FOND uniquement) ---------- */
     function applySkybox(on){
       if (on) {
-        mv.setAttribute('skybox-image', GALAXY_URL);
-        mv.setAttribute('environment-image', GALAXY_URL);
-        mv.environmentIntensity = 5.0;      // IBL très fort
-        tweenExposure(mv.exposure ?? 3.0, 3.4, 250);
+        mv.setAttribute('skybox-image', GALAXY_URL);       // fond
+        // on garde environment-image="neutral" pour la lumière -> reste bright
+        tweenExposure(mv.exposure ?? 2.6, 2.8, 200);
       } else {
         mv.removeAttribute('skybox-image');
-        mv.setAttribute('environment-image', 'neutral');
-        mv.environmentIntensity = 2.0;
-        tweenExposure(mv.exposure ?? 3.0, 1.6, 250);
+        tweenExposure(mv.exposure ?? 2.6, 2.4, 200);
       }
+      // Enregistre l'état
+      try { localStorage.setItem('galaxyEnabled', on ? '1' : '0'); } catch(e){}
     }
 
-    /* ---------- Boost matériaux (radical) ---------- */
-    function brightenMaterialsRadical(){
-      try{
-        const mats = mv.model?.materials || [];
-        mats.forEach(mat=>{
-          const pbr = mat.pbrMetallicRoughness;
-          // Réhausse fortement la baseColor si sombre
-          const base = pbr.baseColorFactor ?? [0.1,0.1,0.1,1];
-          const avg = (base[0]+base[1]+base[2])/3;
-          if (avg < 0.5) {
-            const k = 0.85; // minimum de luminosité par canal
-            pbr.setBaseColorFactor([Math.max(base[0],k), Math.max(base[1],k), Math.max(base[2],k), base[3]]);
-          }
-          // Spéculaire lisible
-          pbr.setRoughnessFactor(Math.max(0.18, Math.min(pbr.roughnessFactor ?? 0.5, 0.35)));
-          pbr.setMetallicFactor(Math.max(0.25, pbr.metallicFactor ?? 0.25));
-        });
-      }catch(e){/* noop */}
+    /* ---------- Persistance UI ---------- */
+    function restoreSkyboxSetting(){
+      let saved = null;
+      try { saved = localStorage.getItem('galaxyEnabled'); } catch(e){}
+      if (saved === '0') tSky.checked = false;
+      else if (saved === '1') tSky.checked = true;
+      else {
+        // si aucune préférence, on démarre cochée (tu peux mettre false pour OFF par défaut)
+        tSky.checked = true;
+      }
     }
 
     /* ---------- UI Listeners ---------- */
     cfg.addEventListener('change', async ()=>{
       mv.src = URLS[cfg.value] || URLS.full;
       await mv.updateComplete; await waitLoad();
-      applyIso(); applySkybox(tSky.checked);
-      brightenMaterialsRadical();
+      applyIso();
+      applySkybox(tSky.checked);
       placeDimensionHotspots();
       if (!tDims.checked) setHotspotsVisibility(false);
     });
+
     tSky.addEventListener('change', ()=> applySkybox(tSky.checked));
     tDims.addEventListener('change', ()=>{
       setHotspotsVisibility(tDims.checked);
@@ -214,13 +210,15 @@
     btnR.addEventListener('click', applyIso);
 
     /* ---------- Init ---------- */
-    mv.addEventListener('load', ()=>{
-      applyIso();
-      applySkybox(true);
-      brightenMaterialsRadical();     // ⚡️ rend la goutte lisible même si le matériau est noir
+    (async ()=>{
+      restoreSkyboxSetting();                 // restaure la case
+      await waitLoad();
+      // Applique l'état réel (au lieu de forcer ON)
+      applySkybox(tSky.checked);
       placeDimensionHotspots();
       setHotspotsVisibility(tDims.checked);
-    });
+      applyIso();
+    })();
   </script>
 </body>
 </html>

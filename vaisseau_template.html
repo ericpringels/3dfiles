@@ -5,34 +5,25 @@
   <title>Goutte – Visualisation interactive</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-  <!-- Inter -->
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-
-  <!-- Précharge la skybox (fond) -->
   <link rel="preload" as="image" href="./multi_nebulae_1.png" />
 
-  <!-- model-viewer -->
   <script type="module" src="https://cdn.jsdelivr.net/npm/@google/model-viewer@3.4.0/dist/model-viewer.min.js"></script>
 
   <style>
     html,body{height:100%;margin:0;background:transparent;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
     .wrap{position:relative;width:100%;height:100%;min-height:320px;background:transparent}
     model-viewer{width:100%;height:100%;background-color:transparent;--poster-color:transparent}
-
     .controls{position:absolute;top:12px;left:12px;display:flex;gap:8px;flex-wrap:wrap;
-      padding:10px 12px;background:rgba(20,20,20,.6);color:#fff;border-radius:12px;
-      backdrop-filter:blur(8px);z-index:5}
+      padding:10px 12px;background:rgba(20,20,20,.6);color:#fff;border-radius:12px;backdrop-filter:blur(8px);z-index:5}
     .controls label{font-size:14px;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
     .controls select,.controls input[type=checkbox]{accent-color:#999;background:#111;color:#fff;
       border:1px solid #444;border-radius:8px;padding:6px 8px;font-size:14px}
     .controls select{min-width:240px}
-
     .footer{position:absolute;left:12px;bottom:12px;z-index:5}
     .btn{border:1px solid #444;border-radius:999px;padding:8px 12px;background:rgba(20,20,20,.6);color:#fff;font-size:13px;cursor:pointer}
     .btn:hover{border-color:#666}
-
-    /* Hotspots dimensions */
     model-viewer::part(default-hotspot){background:transparent;border:none}
     .dimtag{display:flex;align-items:center;gap:6px;padding:4px 8px;border-radius:10px;
       background:rgba(0,0,0,.55);color:#fff;font-size:12px;box-shadow:0 1px 8px rgba(0,0,0,.35)}
@@ -50,7 +41,6 @@
           <option value="top">Couvercle – partie haute</option>
         </select>
       </label>
-
       <label><input type="checkbox" id="toggleDims"> Afficher les dimensions</label>
       <label><input type="checkbox" id="toggleSky"> Galaxie</label>
     </div>
@@ -59,13 +49,15 @@
       <button id="reset" class="btn" type="button">Réinitialiser la vue</button>
     </div>
 
-    <!-- Viewer -->
-    <model-viewer id="mv"
+    <model-viewer
+      id="mv"
       src="https://ericpringels.github.io/3dfiles/goutte59c_XL.glb"
-      camera-controls touch-action="pan-y" interaction-prompt="none"
+      camera-controls
+      touch-action="pan-y"
+      interaction-prompt="none"
+      tone-mapping="aces"
       style="background-color:transparent"
       alt="Urne goutte – visualisation 3D"
-      tone-mapping="aces"
       camera-orbit="30deg 60deg auto"
       camera-target="auto"
       field-of-view="55deg"
@@ -73,24 +65,17 @@
       max-field-of-view="85deg"
       scale="0.38 0.38 0.38"
       exposure="2.6"
-      environment-image="neutral"         <!-- IBL HDR fiable -->
+      environment-image="neutral"
       environment-intensity="3.4"
       shadow-intensity="0.5"
-      shadow-softness="0.8"
-    >
-      <!-- 💡 ÉCLAIRAGE RÉEL (positions, pas "direction") -->
-      <!-- key -->
+      shadow-softness="0.8">
+
+      <!-- Éclairage réel (positions) -->
       <directional-light color="#ffffff" intensity="3.2" position="1 1 1"></directional-light>
-      <!-- fill -->
       <directional-light color="#ffffff" intensity="2.4" position="-1 0.7 0.4"></directional-light>
-      <!-- rim back -->
       <directional-light color="#ffffff" intensity="2.0" position="0 -0.2 -1"></directional-light>
-      <!-- top -->
       <directional-light color="#ffffff" intensity="1.6" position="0 1 0"></directional-light>
-
       <hemisphere-light sky-color="#e8efff" ground-color="#6a6a70" intensity="1.2"></hemisphere-light>
-
-      <!-- spots proches -->
       <point-light intensity="1800" position="0.35 0.35 0.35" color="#ffffff" range="3"></point-light>
       <point-light intensity="1300" position="-0.4 -0.15 0.25" color="#ffd9b3" range="3"></point-light>
 
@@ -117,8 +102,9 @@
       top : "https://ericpringels.github.io/3dfiles/goutte59c_XL_haut.glb"
     };
 
-    const GALAXY_URL = "./multi_nebulae_1.png";
+    const SKYBOX_URL = "./multi_nebulae_1.png";
     const ISO = { orbit:"30deg 60deg auto", target:"auto", fov:"55deg" };
+
     function applyIso(){ mv.cameraOrbit=ISO.orbit; mv.cameraTarget=ISO.target; mv.fieldOfView=ISO.fov; }
 
     function waitLoad(){
@@ -148,8 +134,7 @@
         el.dataset.normal = "0 1 0";
         const cm = (m.len*100).toFixed(1);
         el.querySelector(".label").textContent =
-          (m.axis==='x' ? `Largeur ${cm} cm` :
-           m.axis==='z' ? `Profondeur ${cm} cm` : `Hauteur ${cm} cm`);
+          (m.axis==='x' ? `Largeur ${cm} cm` : m.axis==='z' ? `Profondeur ${cm} cm` : `Hauteur ${cm} cm`);
       });
       setHotspotsVisibility(tDims.checked);
     }
@@ -166,33 +151,26 @@
       requestAnimationFrame(step);
     }
 
-    /* ---------- Skybox (FOND uniquement) ---------- */
+    /* ---------- Skybox (fond uniquement) + persistance ---------- */
     function applySkybox(on){
       if (on) {
-        mv.setAttribute('skybox-image', GALAXY_URL);       // fond
-        // on garde environment-image="neutral" pour la lumière -> reste bright
+        mv.setAttribute('skybox-image', SKYBOX_URL);
         tweenExposure(mv.exposure ?? 2.6, 2.8, 200);
       } else {
         mv.removeAttribute('skybox-image');
         tweenExposure(mv.exposure ?? 2.6, 2.4, 200);
       }
-      // Enregistre l'état
       try { localStorage.setItem('galaxyEnabled', on ? '1' : '0'); } catch(e){}
     }
-
-    /* ---------- Persistance UI ---------- */
     function restoreSkyboxSetting(){
       let saved = null;
       try { saved = localStorage.getItem('galaxyEnabled'); } catch(e){}
       if (saved === '0') tSky.checked = false;
       else if (saved === '1') tSky.checked = true;
-      else {
-        // si aucune préférence, on démarre cochée (tu peux mettre false pour OFF par défaut)
-        tSky.checked = true;
-      }
+      else tSky.checked = true; // défaut: ON
     }
 
-    /* ---------- UI Listeners ---------- */
+    /* ---------- UI ---------- */
     cfg.addEventListener('change', async ()=>{
       mv.src = URLS[cfg.value] || URLS.full;
       await mv.updateComplete; await waitLoad();
@@ -201,7 +179,6 @@
       placeDimensionHotspots();
       if (!tDims.checked) setHotspotsVisibility(false);
     });
-
     tSky.addEventListener('change', ()=> applySkybox(tSky.checked));
     tDims.addEventListener('change', ()=>{
       setHotspotsVisibility(tDims.checked);
@@ -211,9 +188,8 @@
 
     /* ---------- Init ---------- */
     (async ()=>{
-      restoreSkyboxSetting();                 // restaure la case
+      restoreSkyboxSetting();
       await waitLoad();
-      // Applique l'état réel (au lieu de forcer ON)
       applySkybox(tSky.checked);
       placeDimensionHotspots();
       setHotspotsVisibility(tDims.checked);
